@@ -46,13 +46,15 @@ function addAsset(urlPath, file, immutable) {
   ASSETS.set(urlPath, { body, gz, type, etag: '"' + crypto.createHash('sha256').update(body).digest('base64url').slice(0, 22) + '"',
     cache: immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=3600' });
 }
-for (const f of fs.readdirSync(path.join(WEB, 'assets'))) addAsset('/assets/' + f, path.join(WEB, 'assets', f), /-[A-Za-z0-9]{8,}\.(js|css|woff2)$/.test(f));
+for (const f of fs.readdirSync(path.join(WEB, 'assets'))) addAsset('/assets/' + f, path.join(WEB, 'assets', f), /-[A-Za-z0-9]{8,}\.(js|css|woff2|png)$/.test(f));
 for (const f of fs.readdirSync(path.join(HERE, 'public'))) addAsset('/assets/' + f, path.join(HERE, 'public', f), false);
 addAsset('/manifest.webmanifest', path.join(WEB, 'manifest.webmanifest'), false);
 const APP_CSS = [...ASSETS.keys()].find((k) => /^\/assets\/app-[a-f0-9]+\.css$/.test(k));
+const APP_ICON = [...ASSETS.keys()].find((k) => /^\/assets\/icon-[a-f0-9]+\.png$/.test(k));
+if (!APP_CSS || !APP_ICON) throw new Error('The web build is missing its stylesheet or icon');
 const INDEX = fs.readFileSync(path.join(WEB, 'index.html'), 'utf8');
-const LOGIN = fs.readFileSync(path.join(HERE, 'login.html'), 'utf8').replace('__APPCSS__', APP_CSS);
-const SETUP = fs.readFileSync(path.join(HERE, 'setup.html'), 'utf8').replace('__APPCSS__', APP_CSS);
+const LOGIN = fs.readFileSync(path.join(HERE, 'login.html'), 'utf8').replaceAll('__APPCSS__', APP_CSS).replaceAll('__ICON__', APP_ICON);
+const SETUP = fs.readFileSync(path.join(HERE, 'setup.html'), 'utf8').replaceAll('__APPCSS__', APP_CSS).replaceAll('__ICON__', APP_ICON);
 if (!INDEX.includes('__SERVER__') || !INDEX.includes('__DATA__')) throw new Error('web/index.html is missing its placeholders');
 
 /* ---------------- users (re-read when the file changes, so the CLI works without a restart) ---------------- */

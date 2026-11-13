@@ -1,7 +1,7 @@
 :root{
   color-scheme:light;
   --bg:#E8EBF1; --surface:#FFFFFF; --surface-2:#F3F5F9; --sunk:#DDE1E9;
-  --ink:#151927; --ink-2:#525A6E; --ink-3:#7F8799;
+  --ink:#151927; --ink-2:#525A6E; --ink-3:#5E6678;
   --line:rgba(21,25,39,.11); --line-2:rgba(21,25,39,.2);
   --accent:#2F43F5; --accent-ink:#FFFFFF; --accent-soft:rgba(47,67,245,.1);
   --warn:#B4340B; --warn-soft:#FCE9DF; --low:#845400; --low-soft:#FBEFD0; --toast-accent:#A9B4FF;
@@ -30,6 +30,8 @@
 html{-webkit-text-size-adjust:100%;scrollbar-gutter:stable;touch-action:manipulation}
 html.lock,html.lock body{overflow:hidden}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 var(--body);-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+::selection{background:var(--accent);color:var(--accent-ink)}
+input,textarea{caret-color:var(--accent)}
 button,input,select,textarea{font:inherit;color:inherit}
 input:not([type=file]),textarea{-webkit-appearance:none;appearance:none}
 button,.chip,.stepper,.dock,.seg-ctl,.cell-top,.sheet-head,.kpi{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -331,7 +333,7 @@ button.kpi:not(:disabled):active{transform:scale(.97)}
 .mini-plus:active{transform:scale(.9)}
 
 .toast.has-action{pointer-events:auto;padding:0 6px 0 18px}
-.toast{display:flex;align-items:center;gap:10px;position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 96px);transform:translateX(-50%);z-index:90;background:var(--ink);color:var(--bg);font-weight:600;font-size:14.5px;padding:11px 18px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 24px -6px rgba(0,0,0,.4);animation:toast 2.2s ease both;pointer-events:none;max-width:calc(100vw - 32px)}
+.toast{display:flex;align-items:center;gap:10px;position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 96px);transform:translateX(-50%);z-index:90;background:var(--ink);color:var(--bg);font-weight:600;font-size:14.5px;line-height:1.35;padding:12px 18px;border-radius:22px;text-align:center;box-shadow:0 8px 24px -6px rgba(0,0,0,.4);animation:toast 2.2s ease both;pointer-events:none;max-width:min(440px,calc(100vw - 32px))}
 .toast button{min-height:44px;padding:0 12px;font-weight:700;color:var(--toast-accent);border-radius:999px}
 @keyframes toast{0%{opacity:0;transform:translate(-50%,12px)}8%,85%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,0)}}
 

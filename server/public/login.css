@@ -1,5 +1,5 @@
 .login{max-width:400px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 56px) 24px calc(env(safe-area-inset-bottom) + 40px);display:grid;gap:14px}
-.login-mark{width:72px;height:72px;border-radius:20px;box-shadow:0 10px 30px -10px rgba(34,48,216,.5)}
+.login-mark{width:88px;height:88px;border-radius:24px;box-shadow:0 14px 28px -16px rgba(20,30,60,.5)}
 .login h1{margin:10px 0 0}
 .login-sub{color:var(--ink-2);font-size:16px;margin:0 0 6px}
 .login .form{display:grid;gap:16px;background:var(--surface);padding:22px;border-radius:24px;box-shadow:var(--shadow)}
