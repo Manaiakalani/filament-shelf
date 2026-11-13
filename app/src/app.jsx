@@ -1251,7 +1251,7 @@ export default function App() {
       <div className="bg" ref={bgRef}>
         <header className="top">
           <div className="top-row">
-            <h1>Filament<br /> Shelf</h1>
+            <h1>Filament <br />Shelf</h1>
             <div className="top-side">
               <button className="icon-btn solid" onClick={() => setSheet({ type: 'more' })} aria-label="Settings, brands and backup">{I.more}</button>
               {mode === 'conflict' || mode === 'signedout' || mode === 'rejected'

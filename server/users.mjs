@@ -40,7 +40,7 @@ switch (cmd) {
     users.users[name] = { hash: await newPassword(), changed: Date.now() }; save(); console.log('Added ' + name + '.'); break;
   case 'passwd':
     need(); if (!users.users[name]) die('No user named ' + name + '.');
-    users.users[name] = { hash: await newPassword(), changed: Date.now() }; save(); console.log('Changed the password for ' + name + ' and signed them out everywhere.'); break;
+    users.users[name] = { ...users.users[name], hash: await newPassword(), changed: Date.now() }; save(); console.log('Changed the password for ' + name + ' and signed them out everywhere.'); break;
   case 'signout':
     need(); if (!users.users[name]) die('No user named ' + name + '.');
     users.users[name].changed = Date.now(); save(); console.log('Signed ' + name + ' out on every device.'); break;

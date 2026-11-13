@@ -30,15 +30,21 @@ for (const f of cssRes.outputFiles) {
 const jsName = 'app-' + hash(js) + '.js', cssName = 'app-' + hash(css) + '.css';
 fs.writeFileSync(path.join(assets, jsName), js);
 fs.writeFileSync(path.join(assets, cssName), css);
-fs.copyFileSync('icon.png', path.join(assets, 'icon.png'));
+const icon = fs.readFileSync('icon.png');
+const iconName = 'icon-' + hash(icon) + '.png';
+fs.writeFileSync(path.join(assets, iconName), icon);
 
 const catalog = JSON.stringify(JSON.parse(fs.readFileSync('src/catalog.json', 'utf8'))).replace(/</g, '\\u003c');
-let html = fs.readFileSync('template-server.html', 'utf8').replace('__JS__', jsName).replace('__CSS__', cssName).replace('__CATALOG__', () => catalog);
+let html = fs.readFileSync('template-server.html', 'utf8').replace('__JS__', jsName).replace('__CSS__', cssName).replaceAll('__ICON__', iconName).replace('__CATALOG__', () => catalog);
 fs.writeFileSync(path.join(out, 'index.html'), html);
 fs.copyFileSync('src/seed.json', path.join(out, 'seed.json'));
 fs.writeFileSync(path.join(out, 'manifest.webmanifest'), JSON.stringify({
-  name: 'Filament Shelf', short_name: 'Filament', start_url: '/', scope: '/', display: 'standalone',
-  background_color: '#11131A', theme_color: '#11131A', icons: [{ src: '/assets/icon.png', sizes: '180x180', type: 'image/png' }],
+  name: 'Filament Shelf', short_name: 'Shelf', start_url: '/', scope: '/', display: 'standalone',
+  background_color: '#E8EBF1', theme_color: '#E8EBF1',
+  icons: [
+    { src: '/assets/' + iconName, sizes: '1024x1024', type: 'image/png', purpose: 'any' },
+    { src: '/assets/' + iconName, sizes: '1024x1024', type: 'image/png', purpose: 'maskable' },
+  ],
 }));
 
 await build({ entryPoints: ['src/validate-entry.mjs'], bundle: true, platform: 'node', format: 'esm', outfile: path.join(out, 'validate.mjs'), legalComments: 'none' });
