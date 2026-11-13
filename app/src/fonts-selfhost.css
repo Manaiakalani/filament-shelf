@@ -1,0 +1,6 @@
+@import "@fontsource-variable/bricolage-grotesque/opsz.css";
+@import "@fontsource-variable/instrument-sans/index.css";
+:root{
+  --display:"Bricolage Grotesque Variable","Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --body:"Instrument Sans Variable","Instrument Sans","Avenir Next","Segoe UI",system-ui,sans-serif;
+}

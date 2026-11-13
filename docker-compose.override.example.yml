@@ -1,0 +1,14 @@
+# Copy to docker-compose.override.yml on nenebytes. That file stays off git.
+# It publishes the app on this computer only and joins the network the existing
+# cloudflared container already uses. Do not start the tunnel profile.
+services:
+  app:
+    ports: !override
+      - "127.0.0.1:3026:8080"
+    networks:
+      - default
+      - docker_default
+
+networks:
+  docker_default:
+    external: true

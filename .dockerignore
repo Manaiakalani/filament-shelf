@@ -1,0 +1,7 @@
+.git
+data
+.env
+docker-compose.override.yml
+**/node_modules
+app/dist-server
+app/.selfhost-entry.css

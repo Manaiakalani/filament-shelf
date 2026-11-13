@@ -1,0 +1,66 @@
+# Filament Shelf. Settings live in the .env file next to this one (copy .env.example to .env).
+#
+#   Home network:                 docker compose up -d --build
+#   This computer only:           BIND_ADDRESS=127.0.0.1 in .env, then the same command
+#   With a Cloudflare Tunnel:     docker compose --profile tunnel up -d --build
+#
+# On nenebytes, skip the tunnel profile. That machine already runs cloudflared.
+# Copy docker-compose.override.example.yml to docker-compose.override.yml and
+# point the existing tunnel at http://filament-shelf:8080.
+name: filament-shelf
+
+services:
+  app:
+    build: .
+    image: filament-shelf:local
+    container_name: filament-shelf
+    restart: unless-stopped
+    ports:
+      # BIND_ADDRESS=127.0.0.1 keeps it off your Wi-Fi (tunnel or this computer only).
+      - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-3026}:8080"
+    environment:
+      SETUP_KEY: ${SETUP_KEY:-}
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
+      SESSION_DAYS: ${SESSION_DAYS:-30}
+      COOKIE_SECURE: ${COOKIE_SECURE:-}
+    volumes:
+      # The shelf, accounts, sessions and backups. Copy this folder to move the app.
+      - ./data:/data
+    # Hardening: read-only system files, no extra Linux privileges, resource caps.
+    # The start script needs those caps only long enough to fix /data, then it drops them.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777,noexec,nosuid
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+
+  tunnel:
+    # Same digest Our Lives pins. Change it on purpose when you want a newer cloudflared.
+    image: cloudflare/cloudflared@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
+    container_name: filament-shelf-tunnel
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      app:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }

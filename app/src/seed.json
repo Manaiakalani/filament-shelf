@@ -1,0 +1,135 @@
+{
+ "version": 1,
+ "updatedAt": 0,
+ "brands": [
+  "Overture",
+  "Polymaker PolyTerra",
+  "Polymaker PolyLite",
+  "Polymaker Polychroma",
+  "Make Market",
+  "Bambu Lab",
+  "Prusament"
+ ],
+ "spools": [
+  {
+   "id": "sample-1",
+   "brand": "Polymaker PolyTerra",
+   "material": "Matte PLA",
+   "colorName": "Lava Red",
+   "hex": "#D63A2F",
+   "count": 2,
+   "notes": "",
+   "isSample": true,
+   "location": "Shelf A",
+   "price": 19.99,
+   "weight": 1000
+  },
+  {
+   "id": "sample-2",
+   "brand": "Polymaker PolyTerra",
+   "material": "Matte PLA",
+   "colorName": "Mint",
+   "hex": "#9FDCC2",
+   "count": 1,
+   "notes": "Great for sensory bins",
+   "isSample": true,
+   "location": "Shelf A",
+   "price": 19.99,
+   "weight": 1000
+  },
+  {
+   "id": "sample-3",
+   "brand": "Overture",
+   "material": "PETG",
+   "colorName": "Sky Blue",
+   "hex": "#3A9FE0",
+   "count": 3,
+   "notes": "",
+   "isSample": true,
+   "location": "Drybox",
+   "price": 17.99,
+   "weight": 1000
+  },
+  {
+   "id": "sample-4",
+   "brand": "Overture",
+   "material": "PLA",
+   "colorName": "White",
+   "hex": "#F4F3EE",
+   "count": 4,
+   "notes": "Everyday workhorse",
+   "isSample": true,
+   "location": "Shelf B",
+   "price": 15.99,
+   "weight": 1000
+  },
+  {
+   "id": "sample-5",
+   "brand": "Polymaker PolyLite",
+   "material": "PLA",
+   "colorName": "Yellow",
+   "hex": "#F6C416",
+   "count": 1,
+   "notes": "",
+   "isSample": true,
+   "location": "Shelf B",
+   "price": 16.99,
+   "weight": 1000
+  },
+  {
+   "id": "sample-6",
+   "brand": "Polymaker Polychroma",
+   "material": "Silk PLA",
+   "colorName": "Sunset Orange",
+   "hex": "#F27A2E",
+   "count": 1,
+   "notes": "",
+   "isSample": true,
+   "location": "AMS 1",
+   "price": 24.99,
+   "weight": 1000
+  },
+  {
+   "id": "sample-7",
+   "brand": "Bambu Lab",
+   "material": "PLA",
+   "colorName": "Bambu Green",
+   "hex": "#0BA84A",
+   "count": 2,
+   "notes": "",
+   "isSample": true,
+   "location": "AMS 2",
+   "price": 19.99,
+   "weight": 1000
+  },
+  {
+   "id": "sample-8",
+   "brand": "Prusament",
+   "material": "PETG",
+   "colorName": "Galaxy Black",
+   "hex": "#2A2B33",
+   "count": 1,
+   "notes": "Sparkles in sunlight",
+   "isSample": true,
+   "location": "Drybox",
+   "price": 29.99,
+   "weight": 1000
+  },
+  {
+   "id": "sample-9",
+   "brand": "Make Market",
+   "material": "PLA+",
+   "colorName": "Lavender",
+   "hex": "#A48BD8",
+   "count": 0,
+   "notes": "",
+   "isSample": true,
+   "location": "",
+   "price": 14.99,
+   "weight": 1000
+  }
+ ],
+ "settings": {
+  "lowAt": 1
+ }
+}

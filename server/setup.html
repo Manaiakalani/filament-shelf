@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create your account · Filament Shelf</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#E8EBF1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11131A" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Filament">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="/assets/icon.png">
+<link rel="apple-touch-icon" href="/assets/icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="__APPCSS__">
+<link rel="stylesheet" href="/assets/login.css">
+</head>
+<body>
+<main class="login">
+  <img class="login-mark" src="/assets/icon.png" alt="" width="72" height="72">
+  <h1>Filament<br>Shelf</h1>
+  <p class="login-sub">Choose a name and password before you share this. It only happens once.</p>
+  __MSG__
+  <form method="post" action="/setup" class="form">
+    <label class="field"><span>Your name</span>
+      <input name="display" value="__DISPLAY__" autocomplete="name" required maxlength="40"></label>
+    <label class="field"><span>Username</span>
+      <input name="username" value="__NAME__" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required maxlength="32"></label>
+    <label class="field"><span>Password</span>
+      <input name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="1024"></label>
+    <label class="field"><span>Type it again</span>
+      <input name="confirm" type="password" autocomplete="new-password" required minlength="8" maxlength="1024"></label>
+    <label class="field"><span>Setup key, if you were given one</span>
+      <input name="setupKey" type="password" autocomplete="off" maxlength="200"></label>
+    <button class="btn primary full" type="submit">Create account</button>
+  </form>
+  <p class="login-sub">You sign in with this username and password. Filament Shelf keeps a protected copy.</p>
+</main>
+</body>
+</html>

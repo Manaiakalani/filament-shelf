@@ -1,0 +1,15 @@
+# dependabot opens pull requests when GitHub Actions, the Docker base image, or the build tools need updates.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /app
+    schedule:
+      interval: weekly
