@@ -68,7 +68,7 @@ You need a free Cloudflare account and a domain on Cloudflare.
    docker compose --profile tunnel up -d --build
    ```
 
-   On nenebytes, skip this step. That machine already runs one cloudflared container. Add a public hostname on that tunnel instead of starting a second one. Point it at `http://filament-shelf:8080`. Copy `docker-compose.override.example.yml` to `docker-compose.override.yml` so the app joins the `docker_default` network and listens on `127.0.0.1:3026`. Set `TRUST_PROXY=cloudflare` and `PUBLIC_ORIGIN` in the server `.env`.
+   On nenebytes, skip this step. That machine already runs one cloudflared container. Add a public hostname on that tunnel instead of starting a second one. Point it at `http://filament-shelf:8080`. Copy `docker-compose.override.example.yml` to `docker-compose.override.yml` so the app joins the existing `docker_default` network and listens on port 3026. Run `docker compose` from the repo directory with no `-f`, or Compose will ignore the override and try to create a new network. Set `TRUST_PROXY=cloudflare` and `PUBLIC_ORIGIN` in the server `.env` once that hostname exists. Until then, leave both empty and open `http://192.168.1.16:3026` on the Wi-Fi.
 
 5. Open `https://filament.yourdomain.com` and add that to your home screen instead.
 
