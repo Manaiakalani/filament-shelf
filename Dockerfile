@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Stage 1: build the web app (React, charts, fonts) ----
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /build
 COPY app/package.json app/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -9,7 +9,7 @@ COPY app/ ./
 RUN node build-server.mjs
 
 # ---- Stage 2: the small runtime image ----
-FROM node:22-alpine
+FROM node:25-alpine
 # Pick up Alpine security fixes, then remove npm: the server needs no packages at run time.
 # su-exec drops to the node user after the entrypoint fixes /data ownership.
 RUN apk upgrade --no-cache \
