@@ -9,7 +9,20 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # The image and CI stay on Node 22. Node 25 is current, not LTS.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
     directory: /app
     schedule:
       interval: weekly
+    ignore:
+      # React 19 and Recharts 3 need a chart migration and a browser pass.
+      # Patch and minor updates on 18.x and 2.x still open.
+      - dependency-name: react
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-dom
+        update-types: ["version-update:semver-major"]
+      - dependency-name: recharts
+        update-types: ["version-update:semver-major"]
