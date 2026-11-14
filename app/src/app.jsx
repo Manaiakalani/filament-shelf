@@ -78,12 +78,13 @@ function Spool({ hex, count = 1, material = '', size = 96, remaining = null, wei
   const R = 19 + fill * 26;
   const rain = isRainbow(hex);
   const dark = !rain && luminance(hex) < 0.18;
+  const pale = !rain && luminance(hex) > 0.78;
   const lines = [];
   for (let r = 22.4; r < R - 1; r += 3.1) lines.push(r);
-  const sheen = rain ? 0.22 : /silk/i.test(material) ? 1 : /matte/i.test(material) ? 0.18 : 0.5;
+  const sheen = rain ? 0.22 : /silk/i.test(material) ? 0.85 : /matte/i.test(material) ? 0.16 : 0.32;
   const wound = rain ? 'url(#sp-rainbow)' : hex;
   return (
-    <svg className={'spool' + (out ? ' is-out' : '')} viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
+    <svg className={'spool' + (out ? ' is-out' : '') + (pale ? ' is-pale' : '')} viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
       <circle cx="50" cy="50" r="48" className="sp-flange" />
       {out ? (
         <circle cx="50" cy="50" r="34" className="sp-empty" />
@@ -1081,6 +1082,7 @@ export default function App() {
   const [fm, setFm] = useState(() => ss.get('fs-fm', []));
   const [fl, setFl] = useState(() => ss.get('fs-fl', []));
   const [fr, setFr] = useState(() => ss.get('fs-fr', false));
+  const [filterGroup, setFilterGroup] = useState(() => ss.get('fs-fg', 'brand'));
   const [sheet, setSheet] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [toastMsg, setToastMsg] = useState(null);
@@ -1096,7 +1098,7 @@ export default function App() {
   const lowAt = state.settings && Number.isFinite(state.settings.lowAt) ? state.settings.lowAt : 1;
   const lowGrams = state.settings && Number.isFinite(state.settings.lowGrams) ? state.settings.lowGrams : 200;
 
-  useEffect(() => { ss.set('fs-tab', tab); ss.set('fs-q', q); ss.set('fs-sort', sort); ss.set('fs-fb', fb); ss.set('fs-fm', fm); ss.set('fs-fl', fl); ss.set('fs-fr', fr); }, [tab, q, sort, fb, fm, fl, fr]);
+  useEffect(() => { ss.set('fs-tab', tab); ss.set('fs-q', q); ss.set('fs-sort', sort); ss.set('fs-fb', fb); ss.set('fs-fm', fm); ss.set('fs-fl', fl); ss.set('fs-fr', fr); ss.set('fs-fg', filterGroup); }, [tab, q, sort, fb, fm, fl, fr, filterGroup]);
   useEffect(() => {
     const y = ss.get('fs-y', 0); if (y) requestAnimationFrame(() => window.scrollTo(0, y));
     let t; const f = () => { clearTimeout(t); t = setTimeout(() => ss.set('fs-y', window.scrollY), 150); };
@@ -1221,6 +1223,12 @@ export default function App() {
   }, [state.spools, q, sort, aFb.join('|'), aFm.join('|'), aFl.join('|'), aFr, state.settings]);
 
   const filtered = !!(q.trim() || aFb.length || aFm.length || aFl.length || aFr);
+  const filterGroups = [
+    brandChips.length ? ['brand', 'Brand', aFb.length] : null,
+    matChips.length ? ['material', 'Material', aFm.length] : null,
+    locChips.length ? ['place', 'Place', aFl.length] : null,
+  ].filter(Boolean);
+  const shownGroup = filterGroups.some((g) => g[0] === filterGroup) ? filterGroup : ((filterGroups[0] && filterGroups[0][0]) || 'brand');
   const hasSamples = state.spools.some((s) => s.isSample);
   const toggle = (arr, set, v) => set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
   const toggleBrand = (name) => setFb((cur) => {
@@ -1340,8 +1348,17 @@ export default function App() {
                         <button className={'chip warn' + (aFr ? ' on' : '')} aria-pressed={aFr} onClick={() => setFr(!fr)}>{I.warn}Needs restock · {needN}</button>
                       </div>
                     )}
+                    {filterGroups.length > 1 && (
+                      <div className={'seg-ctl filter-switch' + (filterGroups.length === 2 ? ' two' : '')} role="tablist" aria-label="Filter by">
+                        {filterGroups.map(([id, label, n]) => (
+                          <button key={id} type="button" role="tab" aria-selected={shownGroup === id} className={shownGroup === id ? 'on' : ''} onClick={() => setFilterGroup(id)}>
+                            {label}{n ? ' · ' + n : ''}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {brandChips.length > 0 && (
-                      <div className="filter-row">
+                      <div className={'filter-row' + (shownGroup === 'brand' ? ' is-on' : '')}>
                         <span className="filter-label" id="filter-brand">Brand</span>
                         <div className="chips" role="group" aria-labelledby="filter-brand">
                           {brandChips.map((b) => <button key={b} className={'chip' + (aFb.some((x) => sameBrand(x, b)) ? ' on' : '')} aria-pressed={aFb.some((x) => sameBrand(x, b))} onClick={() => toggleBrand(b)}>{b}</button>)}
@@ -1349,7 +1366,7 @@ export default function App() {
                       </div>
                     )}
                     {matChips.length > 0 && (
-                      <div className="filter-row">
+                      <div className={'filter-row' + (shownGroup === 'material' ? ' is-on' : '')}>
                         <span className="filter-label" id="filter-material">Material</span>
                         <div className="chips" role="group" aria-labelledby="filter-material">
                           {matChips.map((m) => <button key={m} className={'chip alt' + (aFm.includes(m) ? ' on' : '')} aria-pressed={aFm.includes(m)} onClick={() => toggle(fm, setFm, m)}>{m}</button>)}
@@ -1357,7 +1374,7 @@ export default function App() {
                       </div>
                     )}
                     {locChips.length > 0 && (
-                      <div className="filter-row">
+                      <div className={'filter-row' + (shownGroup === 'place' ? ' is-on' : '')}>
                         <span className="filter-label" id="filter-place">Place</span>
                         <div className="chips" role="group" aria-labelledby="filter-place">
                           {locChips.map((l) => <button key={l} className={'chip loc' + (aFl.includes(l) ? ' on' : '')} aria-pressed={aFl.includes(l)} onClick={() => toggle(fl, setFl, l)}>{I.pin}{l}</button>)}
