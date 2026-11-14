@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { PieChart, Pie, Cell } from 'recharts';
 import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, changePassword, signOutOthers } from './store.js';
-import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp } from './color.js';
+import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX } from './color.js';
 
 const MATERIALS = ['PLA', 'PLA+', 'Matte PLA', 'Silk PLA', 'PLA-CF', 'PETG', 'PETG-CF', 'TPU', 'ABS', 'ASA', 'Nylon', 'PC', 'PVB'];
 const SERIES = {
@@ -17,14 +17,17 @@ const PRESETS = [
   ['Blue', '#2456C9'], ['Navy', '#1E2A5A'], ['Purple', '#7A45C4'], ['Lavender', '#A48BD8'],
   ['Magenta', '#D43F9A'], ['Pink', '#F5A3C0'], ['Brown', '#7B4B2A'], ['Beige', '#DCC9A6'],
   ['Gold', '#C9A227'], ['Copper', '#B5663A'], ['Silver', '#C7CCD1'], ['Bone', '#E9E1CF'],
+  ['Rainbow', RAINBOW_HEX],
 ];
 
 const SUGGESTED_BRANDS = ['Elegoo', 'eSUN', 'Sunlu', 'Hatchbox', 'Creality', 'Anycubic', 'Amolen', 'Eryone', 'Inland', 'Jayo', 'Kingroon', 'Tinmorry', 'Atomic Filament', 'Protopasta', 'MatterHackers', 'ColorFabb', 'Fillamentum', 'Paramount 3D', 'Duramic', 'Geeetech'];
 const money = (n) => { try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: n >= 1000 ? 0 : 2 }).format(n); } catch (e) { return '$' + n.toFixed(2); } };
 const kg = (g) => (g / 1000).toFixed(g >= 100000 ? 0 : 1) + ' kg';
 function nearestName(hex) {
+  if (isRainbow(hex)) return 'Rainbow';
   const [r, g, b] = hexToRgb(hex); let best = PRESETS[0][0], bd = Infinity;
   for (const [n, h] of PRESETS) {
+    if (isRainbow(h)) continue;
     const [r2, g2, b2] = hexToRgb(h), rm = (r + r2) / 2;
     const d = (2 + rm / 256) * (r - r2) ** 2 + 4 * (g - g2) ** 2 + (2 + (255 - rm) / 256) * (b - b2) ** 2;
     if (d < bd) { bd = d; best = n; }
@@ -72,10 +75,12 @@ function Spool({ hex, count = 1, material = '', size = 96, remaining = null, wei
   const out = bare;
   const fill = out ? 0 : 0.36 + 0.64 * ratio;
   const R = 19 + fill * 26;
-  const dark = luminance(hex) < 0.18;
+  const rain = isRainbow(hex);
+  const dark = !rain && luminance(hex) < 0.18;
   const lines = [];
   for (let r = 22.4; r < R - 1; r += 3.1) lines.push(r);
-  const sheen = /silk/i.test(material) ? 1 : /matte/i.test(material) ? 0.18 : 0.5;
+  const sheen = rain ? 0.22 : /silk/i.test(material) ? 1 : /matte/i.test(material) ? 0.18 : 0.5;
+  const wound = rain ? 'url(#sp-rainbow)' : hex;
   return (
     <svg className={'spool' + (out ? ' is-out' : '')} viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
       <circle cx="50" cy="50" r="48" className="sp-flange" />
@@ -83,14 +88,14 @@ function Spool({ hex, count = 1, material = '', size = 96, remaining = null, wei
         <circle cx="50" cy="50" r="34" className="sp-empty" />
       ) : (
         <g>
-          <circle cx="50" cy="50" r={R} fill={hex} className="sp-wound" />
+          <circle cx="50" cy="50" r={R} fill={wound} className="sp-wound" />
           {lines.map((r) => <circle key={r} cx="50" cy="50" r={r} fill="none" stroke={dark ? 'rgba(255,255,255,.11)' : 'rgba(0,0,0,.09)'} strokeWidth="0.7" />)}
           <circle cx="50" cy="50" r={R} fill="url(#sp-sheen)" opacity={sheen} className="sp-wound" />
           <circle cx="50" cy="50" r={R} fill="none" className="sp-edge" />
         </g>
       )}
       <circle cx="50" cy="50" r="19" className="sp-hub" />
-      {out && <circle cx="50" cy="50" r="19" fill="none" stroke={hex} strokeWidth="3.5" />}
+      {out && <circle cx="50" cy="50" r="19" fill="none" stroke={wound} strokeWidth="3.5" />}
       {out && <circle cx="50" cy="50" r="21" fill="none" className="sp-edge" />}
       {[0, 120, 240].map((a) => {
         const t = ((a - 90) * Math.PI) / 180;
@@ -230,9 +235,9 @@ function ColorPicker({ hex, onChange, onPreset, onGuess }) {
       <div className="presets" role="listbox" aria-label="Common filament colors">
         {PRESETS.map(([name, h]) => (
           <button type="button" key={h} role="option" aria-selected={hex === h} title={name} aria-label={name}
-            className={'preset' + (hex === h ? ' on' : '')} style={{ '--c': h }}
-            onClick={() => { setHsv(hexToHsv(h)); push(h, true); onPreset && onPreset(name); }}>
-            {hex === h && <span className={luminance(h) > 0.5 ? 'tick dk' : 'tick'}>{I.check}</span>}
+            className={'preset' + (isRainbow(h) ? ' swatch-rainbow' : '') + (hex.toUpperCase() === h ? ' on' : '')} style={isRainbow(h) ? undefined : { '--c': h }}
+            onClick={() => { setHsv(isRainbow(h) ? { h: 0, s: 1, v: 1 } : hexToHsv(h)); push(h, true); onPreset && onPreset(name); }}>
+            {hex.toUpperCase() === h && <span className={!isRainbow(h) && luminance(h) > 0.5 ? 'tick dk' : 'tick'}>{I.check}</span>}
           </button>
         ))}
       </div>
@@ -251,7 +256,7 @@ function ColorPicker({ hex, onChange, onPreset, onGuess }) {
           <div className="sv" {...sv} tabIndex={0} role="slider" aria-label="Saturation and brightness"
             aria-valuetext={Math.round(hsv.s * 100) + '% saturation, ' + Math.round(hsv.v * 100) + '% brightness'}
             onKeyDown={(e) => key(e, 'sv')} style={{ '--hue': hsvToHex(hsv.h, 1, 1) }}>
-            <i style={{ left: hsv.s * 100 + '%', top: (1 - hsv.v) * 100 + '%', background: hex }} />
+            <i className={isRainbow(hex) ? 'swatch-rainbow' : undefined} style={{ left: hsv.s * 100 + '%', top: (1 - hsv.v) * 100 + '%', background: isRainbow(hex) ? undefined : hex }} />
           </div>
           <div className="hue" {...hue} tabIndex={0} role="slider" aria-label="Hue" aria-valuemin={0} aria-valuemax={360}
             aria-valuenow={Math.round(hsv.h)} onKeyDown={(e) => key(e, 'hue')}>
@@ -260,7 +265,7 @@ function ColorPicker({ hex, onChange, onPreset, onGuess }) {
         </div>
       )}
       <label className="hexfield">
-        <span className="hexdot" style={{ background: hex }} />
+        <span className={'hexdot' + (isRainbow(hex) ? ' swatch-rainbow' : '')} style={isRainbow(hex) ? undefined : { background: hex }} />
         <span className="sr">Hex color</span>
         <input value={text} spellCheck={false} autoCapitalize="characters" maxLength={7} inputMode="text"
           onChange={(e) => {
@@ -367,7 +372,7 @@ function CatalogSheet({ myBrands, onPick, onClose }) {
 /* ---------- add / edit ---------- */
 function labelText(s) {
   const left = s.remaining == null ? '' : s.remaining + ' g left';
-  return [s.colorName, [s.brand, s.material].filter(Boolean).join(' · '), s.location || '', s.hex, left].filter(Boolean).join('\n');
+  return [s.colorName, [s.brand, s.material].filter(Boolean).join(' · '), s.location || '', isRainbow(s.hex) ? '' : s.hex, left].filter(Boolean).join('\n');
 }
 function printLabel(s) {
   const w = window.open('', '_blank', 'noopener,width=480,height=360');
@@ -375,7 +380,10 @@ function printLabel(s) {
   const e = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const left = s.remaining == null ? '' : '<p>' + e(s.remaining) + ' g left</p>';
   const where = s.location ? '<p>' + e(s.location) + '</p>' : '';
-  w.document.write('<!DOCTYPE html><html><head><title>' + e(s.colorName) + '</title><style>body{font-family:"Iowan Old Style",Georgia,serif;margin:32px;color:#1c1e26} .dot{width:84px;height:84px;border-radius:50%;border:10px solid #eceff4} h1{font-size:28px;margin:12px 0 4px} p{margin:2px 0;color:#4c5160;font-family:system-ui,sans-serif}</style></head><body><div class="dot" style="background:' + e(s.hex) + '"></div><h1>' + e(s.colorName) + '</h1><p>' + e(s.brand) + ' · ' + e(s.material) + '</p>' + where + left + '<script>addEventListener("load",function(){print()})<\/script></body></html>');
+  const dot = isRainbow(s.hex)
+    ? 'background:conic-gradient(#e5484d,#f5a524 16%,#d9d21c 28%,#30a46c 42%,#19b5c2 56%,#3e6fe8 70%,#8e4ec6 84%,#e5484d)'
+    : 'background:' + e(s.hex);
+  w.document.write('<!DOCTYPE html><html><head><title>' + e(s.colorName) + '</title><style>body{font-family:"Iowan Old Style",Georgia,serif;margin:32px;color:#1c1e26} .dot{width:84px;height:84px;border-radius:50%;border:10px solid #eceff4} h1{font-size:28px;margin:12px 0 4px} p{margin:2px 0;color:#4c5160;font-family:system-ui,sans-serif}</style></head><body><div class="dot" style="' + dot + '"></div><h1>' + e(s.colorName) + '</h1><p>' + e(s.brand) + ' · ' + e(s.material) + '</p>' + where + left + '<script>addEventListener("load",function(){print()})<\/script></body></html>');
   w.document.close();
   return true;
 }
@@ -715,7 +723,7 @@ function ImportSheet({ state, commit, toast, onDone }) {
       ) : (
         <>
           <p className="lead">This backup holds {plural(parsed.spools.length, 'color')} ({plural(parsed.spools.reduce((a, x) => a + x.count, 0), 'spool')}) across {plural(parsed.brands.length, 'brand')}.</p>
-          <div className="strand small">{[...parsed.spools].sort((a, b) => hueKey(a.hex) - hueKey(b.hex)).map((x) => <i key={x.id} style={{ background: x.hex, flexGrow: Math.max(x.count, 0.4) }} />)}</div>
+          <div className="strand small">{[...parsed.spools].sort((a, b) => hueKey(a.hex) - hueKey(b.hex)).map((x) => <i key={x.id} className={isRainbow(x.hex) ? 'swatch-rainbow' : undefined} style={{ background: isRainbow(x.hex) ? undefined : x.hex, flexGrow: Math.max(x.count, 0.4) }} />)}</div>
           <div className="choice">
             <button className="choice-btn" onClick={merge}>
               <strong>Merge with shelf</strong>
@@ -738,7 +746,7 @@ function Readout({ s, hint }) {
   if (!s) return <p className="readout hint">{hint}</p>;
   return (
     <p className="readout">
-      <span className="dot" style={{ background: s.hex }} />
+      <span className={'dot' + (isRainbow(s.hex) ? ' swatch-rainbow' : '')} style={isRainbow(s.hex) ? undefined : { background: s.hex }} />
       <strong>{s.colorName}</strong>
       <span>{s.brand}, {s.material}</span>
       <b>{s.count ? plural(s.count, 'spool') : 'Out'}</b>
@@ -751,7 +759,8 @@ function ColorWheel({ spools }) {
   const S = 320, C = S / 2, RM = 118;
   const nodes = useMemo(() => {
     const ns = spools.map((s) => {
-      const { h, s: sat, v } = hexToHsv(s.hex);
+      const rain = isRainbow(s.hex);
+      const { h, s: sat, v } = rain ? { h: 0, s: 0, v: 1 } : hexToHsv(s.hex);
       const rad = sat * (0.45 + 0.55 * v) * RM;
       const a = ((h - 90) * Math.PI) / 180;
       return { s, x: C + rad * Math.cos(a), y: C + rad * Math.sin(a) - (sat < 0.14 ? (v - 0.5) * 34 : 0), r: s.count ? 8 + 7.5 * Math.sqrt(s.count) : 9 };
@@ -790,10 +799,10 @@ function ColorWheel({ spools }) {
               {n.s.count ? (
                 <>
                   <circle cx={n.x} cy={n.y} r={n.r + 2} className="bub-gap" />
-                  <circle cx={n.x} cy={n.y} r={n.r} fill={n.s.hex} className="bub-fill" />
+                  <circle cx={n.x} cy={n.y} r={n.r} fill={isRainbow(n.s.hex) ? 'url(#sp-rainbow)' : n.s.hex} className="bub-fill" />
                 </>
               ) : (
-                <circle cx={n.x} cy={n.y} r={n.r - 2} fill="none" stroke={n.s.hex} strokeWidth="3.5" strokeDasharray="4 3" />
+                <circle cx={n.x} cy={n.y} r={n.r - 2} fill="none" stroke={isRainbow(n.s.hex) ? 'url(#sp-rainbow)' : n.s.hex} strokeWidth="3.5" strokeDasharray="4 3" />
               )}
               {sel === n.s.id && <circle cx={n.x} cy={n.y} r={n.r + 5} className="bub-sel" />}
             </g>
@@ -825,7 +834,7 @@ function BrandBars({ spools, brands }) {
             <div className="bar-track">
               <div className="bar" style={{ width: (r.total / max) * 100 + '%' }}>
                 {r.list.filter((s) => s.count > 0).map((s) => (
-                  <button key={s.id} className={'seg' + (sel && sel !== s.id ? ' dim' : '') + (sel === s.id ? ' on' : '')} style={{ flexGrow: s.count, background: s.hex }}
+                  <button key={s.id} className={'seg' + (isRainbow(s.hex) ? ' swatch-rainbow' : '') + (sel && sel !== s.id ? ' dim' : '') + (sel === s.id ? ' on' : '')} style={{ flexGrow: s.count, background: isRainbow(s.hex) ? undefined : s.hex }}
                     onClick={() => setSel(sel === s.id ? null : s.id)} aria-label={`${s.colorName}, ${plural(s.count, 'spool')}`} />
                 ))}
               </div>
@@ -921,7 +930,7 @@ function Insights({ state, stats, dark, onAdd, onBump, onRestock, toast }) {
           <p className="sub">{plural(stats.colors, 'color')} across {plural(stats.total, 'spool')}</p>
           {strand.length > 0 && (
             <div className="strand" role="img" aria-label="All your spools laid end to end in rainbow order">
-              {strand.map((s) => <i key={s.id} style={{ background: s.hex, flexGrow: s.count }} title={s.colorName} />)}
+              {strand.map((s) => <i key={s.id} className={isRainbow(s.hex) ? 'swatch-rainbow' : undefined} style={{ background: isRainbow(s.hex) ? undefined : s.hex, flexGrow: s.count }} title={s.colorName} />)}
             </div>
           )}
           <ColorWheel spools={spools} />
@@ -1244,6 +1253,15 @@ export default function App() {
             <stop offset="0.38" stopColor="#fff" stopOpacity="0" />
             <stop offset="0.62" stopColor="#000" stopOpacity="0" />
             <stop offset="1" stopColor="#000" stopOpacity="0.22" />
+          </linearGradient>
+          <linearGradient id="sp-rainbow" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#e5484d" />
+            <stop offset="0.17" stopColor="#f5a524" />
+            <stop offset="0.34" stopColor="#d9d21c" />
+            <stop offset="0.5" stopColor="#30a46c" />
+            <stop offset="0.67" stopColor="#19b5c2" />
+            <stop offset="0.84" stopColor="#3e6fe8" />
+            <stop offset="1" stopColor="#8e4ec6" />
           </linearGradient>
         </defs>
       </svg>
