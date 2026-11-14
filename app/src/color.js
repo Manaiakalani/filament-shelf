@@ -1,5 +1,9 @@
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 export const validHex = (h) => /^#[0-9a-f]{6}$/i.test(h);
+// Stored like any other color so backups and spreadsheets keep it. Nothing in the
+// catalog uses this hex. The shelf draws it as a spectrum, not as this pink.
+export const RAINBOW_HEX = '#FF2BD6';
+export const isRainbow = (hex) => String(hex || '').trim().toUpperCase() === RAINBOW_HEX;
 export function hexToRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -36,6 +40,7 @@ export function luminance(hex) {
 }
 // Rainbow order: neutrals first (light to dark), then by hue starting at red.
 export function hueKey(hex) {
+  if (isRainbow(hex)) return 400;
   const { h, s, v } = hexToHsv(hex);
   if (s < 0.14 || v < 0.22) return -1 + (1 - v);
   return 10 + ((h + 15) % 360);
