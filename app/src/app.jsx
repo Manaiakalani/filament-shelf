@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { PieChart, Pie, Cell } from 'recharts';
 import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, changePassword, signOutOthers } from './store.js';
 import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX } from './color.js';
+import { activeNames, brandsInUse, sameBrand } from './filters.js';
 
 const MATERIALS = ['PLA', 'PLA+', 'Matte PLA', 'Silk PLA', 'PLA-CF', 'PETG', 'PETG-CF', 'TPU', 'ABS', 'ASA', 'Nylon', 'PC', 'PVB'];
 const SERIES = {
@@ -814,35 +815,41 @@ function ColorWheel({ spools }) {
   );
 }
 
-function BrandBars({ spools, brands }) {
+function BrandBars({ spools, brands, selected, onToggle }) {
   const [sel, setSel] = useState(null);
-  const rows = useMemo(() => {
-    const names = [...new Set([...brands, ...spools.map((s) => s.brand)])];
-    return names.map((b) => {
-      const list = spools.filter((s) => s.brand === b).sort((x, y) => hueKey(x.hex) - hueKey(y.hex));
-      return { b, list, total: list.reduce((a, s) => a + s.count, 0) };
-    }).filter((r) => r.list.length).sort((a, b) => b.total - a.total);
-  }, [spools, brands]);
+  const picked = selected || [];
+  const rows = useMemo(() => brandsInUse(brands, spools).map((b) => {
+    const list = spools.filter((s) => sameBrand(s.brand, b)).sort((x, y) => hueKey(x.hex) - hueKey(y.hex));
+    return { b, list, total: list.reduce((a, s) => a + s.count, 0) };
+  }), [spools, brands]);
   const max = Math.max(1, ...rows.map((r) => r.total));
   const cur = spools.find((s) => s.id === sel);
   return (
     <div>
       <div className="bars">
-        {rows.map((r) => (
-          <div className="bar-row" key={r.b}>
-            <div className="bar-label"><span>{r.b}</span><b>{r.total}</b></div>
-            <div className="bar-track">
-              <div className="bar" style={{ width: (r.total / max) * 100 + '%' }}>
-                {r.list.filter((s) => s.count > 0).map((s) => (
-                  <button key={s.id} className={'seg' + (isRainbow(s.hex) ? ' swatch-rainbow' : '') + (sel && sel !== s.id ? ' dim' : '') + (sel === s.id ? ' on' : '')} style={{ flexGrow: s.count, background: isRainbow(s.hex) ? undefined : s.hex }}
-                    onClick={() => setSel(sel === s.id ? null : s.id)} aria-label={`${s.colorName}, ${plural(s.count, 'spool')}`} />
-                ))}
+        {rows.map((r) => {
+          const on = picked.some((b) => sameBrand(b, r.b));
+          return (
+            <div className={'bar-row' + (picked.length && !on ? ' dim' : '')} key={r.b}>
+              <div className="bar-label">
+                <button type="button" className={'bar-name' + (on ? ' on' : '')} aria-pressed={on} onClick={() => onToggle(r.b)}>
+                  {r.b}
+                </button>
+                <b>{r.total}</b>
+              </div>
+              <div className="bar-track">
+                <div className="bar" style={{ width: (r.total / max) * 100 + '%' }}>
+                  {r.list.filter((s) => s.count > 0).map((s) => (
+                    <button key={s.id} className={'seg' + (isRainbow(s.hex) ? ' swatch-rainbow' : '') + (sel && sel !== s.id ? ' dim' : '') + (sel === s.id ? ' on' : '')} style={{ flexGrow: s.count, background: isRainbow(s.hex) ? undefined : s.hex }}
+                      onClick={() => setSel(sel === s.id ? null : s.id)} aria-label={`${s.colorName}, ${plural(s.count, 'spool')}`} />
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-      <Readout s={cur} hint="Each block is one color, as wide as its spool count. Tap a block." />
+      <Readout s={cur} hint="Tap a brand to filter the shelf to that company. Tap a block for one color." />
     </div>
   );
 }
@@ -887,8 +894,10 @@ function MaterialDonut({ spools, dark }) {
   );
 }
 
-function Insights({ state, stats, dark, onAdd, onBump, onRestock, toast }) {
-  const spools = state.spools;
+function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onToggleBrand, onClearBrands }) {
+  const brandsOnSafe = brandsOn || [];
+  const all = state.spools;
+  const spools = brandsOnSafe.length ? all.filter((s) => brandsOnSafe.some((b) => sameBrand(s.brand, b))) : all;
   if (!spools.length) {
     return (
       <div className="empty">
@@ -927,7 +936,7 @@ function Insights({ state, stats, dark, onAdd, onBump, onRestock, toast }) {
       <div className="col">
         <section className="panel">
           <h2>Your colors</h2>
-          <p className="sub">{plural(stats.colors, 'color')} across {plural(stats.total, 'spool')}</p>
+          <p className="sub">{brandsOnSafe.length ? brandsOnSafe.join(' · ') + ' · ' : ''}{plural(new Set(spools.map((s) => s.hex.toUpperCase())).size, 'color')} across {plural(spools.reduce((a, s) => a + s.count, 0), 'spool')}</p>
           {strand.length > 0 && (
             <div className="strand" role="img" aria-label="All your spools laid end to end in rainbow order">
               {strand.map((s) => <i key={s.id} className={isRainbow(s.hex) ? 'swatch-rainbow' : undefined} style={{ background: isRainbow(s.hex) ? undefined : s.hex, flexGrow: s.count }} title={s.colorName} />)}
@@ -944,8 +953,11 @@ function Insights({ state, stats, dark, onAdd, onBump, onRestock, toast }) {
       <div className="col">
         <section className="panel">
           <h2>Spools by brand</h2>
-          <p className="sub">Drawn in the colors you own</p>
-          <BrandBars spools={spools} brands={state.brands} />
+          <div className="subline">
+            <p className="sub">Tap a company to show only that brand.</p>
+            {brandsOnSafe.length > 0 && <button type="button" className="link-btn" onClick={onClearBrands}>Show every brand</button>}
+          </div>
+          <BrandBars spools={all} brands={state.brands} selected={brandsOnSafe} onToggle={onToggleBrand} />
         </section>
         <section className="panel">
           <h2>Restock list</h2>
@@ -1187,16 +1199,16 @@ export default function App() {
     out: state.spools.filter((s) => s.count === 0).length,
   }), [state.spools]);
 
-  const brandChips = useMemo(() => state.brands.filter((b) => state.spools.some((s) => s.brand === b)), [state]);
+  const brandChips = useMemo(() => brandsInUse(state.brands, state.spools), [state]);
   const matChips = useMemo(() => { const set = new Set(state.spools.map((s) => s.material)); return [...MATERIALS.filter((m) => set.has(m)), ...[...set].filter((m) => !MATERIALS.includes(m))]; }, [state.spools]);
   const locChips = useMemo(() => [...new Set(state.spools.map((s) => s.location).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [state.spools]);
   const needN = useMemo(() => state.spools.filter((s) => needsRestock(s, state.settings)).length, [state.spools, state.settings]);
-  const aFb = fb.filter((b) => brandChips.includes(b)), aFm = fm.filter((m) => matChips.includes(m)), aFl = fl.filter((l) => locChips.includes(l));
+  const aFb = activeNames(fb, brandChips), aFm = fm.filter((m) => matChips.includes(m)), aFl = fl.filter((l) => locChips.includes(l));
   const aFr = fr && needN > 0;
 
   const shown = useMemo(() => {
     const n = q.trim().toLowerCase();
-    let list = state.spools.filter((s) => (!aFb.length || aFb.includes(s.brand)) && (!aFm.length || aFm.includes(s.material)) &&
+    let list = state.spools.filter((s) => (!aFb.length || aFb.some((b) => sameBrand(b, s.brand))) && (!aFm.length || aFm.includes(s.material)) &&
       (!aFl.length || aFl.includes(s.location)) && (!aFr || needsRestock(s, state.settings)) &&
       (!n || (s.colorName + ' ' + s.brand + ' ' + s.notes + ' ' + s.material + ' ' + (s.location || '')).toLowerCase().includes(n)));
     const byName = (a, b) => a.colorName.localeCompare(b.colorName);
@@ -1211,6 +1223,11 @@ export default function App() {
   const filtered = !!(q.trim() || aFb.length || aFm.length || aFl.length || aFr);
   const hasSamples = state.spools.some((s) => s.isSample);
   const toggle = (arr, set, v) => set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+  const toggleBrand = (name) => setFb((cur) => {
+    const on = cur.some((b) => sameBrand(b, name));
+    const next = cur.filter((b) => !sameBrand(b, name));
+    return on ? next : [...next, name];
+  });
   const closeSheet = useCallback(() => setSheet(null), []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
   const clearFilters = () => { setQ(''); setFb([]); setFm([]); setFl([]); setFr(false); };
@@ -1317,14 +1334,36 @@ export default function App() {
                       return <button key={k} role="radio" aria-checked={on} className={on ? 'on' : ''} onClick={() => setSort(k === 'count' ? (sort === 'count' ? 'countAsc' : 'count') : k)}>{l}</button>;
                     })}
                   </div>
-                  <div className="chips" aria-label="Filters">
-                    {needN > 0 && <button className={'chip warn' + (aFr ? ' on' : '')} aria-pressed={aFr} onClick={() => setFr(!fr)}>{I.warn}Needs restock · {needN}</button>}
-                    {needN > 0 && (brandChips.length > 0 || matChips.length > 0) && <span className="chip-rule" aria-hidden="true" />}
-                    {brandChips.map((b) => <button key={'b' + b} className={'chip' + (aFb.includes(b) ? ' on' : '')} aria-pressed={aFb.includes(b)} onClick={() => toggle(fb, setFb, b)}>{b}</button>)}
-                    {brandChips.length > 0 && matChips.length > 0 && <span className="chip-rule" aria-hidden="true" />}
-                    {matChips.map((m) => <button key={'m' + m} className={'chip alt' + (aFm.includes(m) ? ' on' : '')} aria-pressed={aFm.includes(m)} onClick={() => toggle(fm, setFm, m)}>{m}</button>)}
-                    {locChips.length > 0 && <span className="chip-rule" aria-hidden="true" />}
-                    {locChips.map((l) => <button key={'l' + l} className={'chip loc' + (aFl.includes(l) ? ' on' : '')} aria-pressed={aFl.includes(l)} onClick={() => toggle(fl, setFl, l)}>{I.pin}{l}</button>)}
+                  <div className="filters">
+                    {needN > 0 && (
+                      <div className="chips">
+                        <button className={'chip warn' + (aFr ? ' on' : '')} aria-pressed={aFr} onClick={() => setFr(!fr)}>{I.warn}Needs restock · {needN}</button>
+                      </div>
+                    )}
+                    {brandChips.length > 0 && (
+                      <div className="filter-row">
+                        <span className="filter-label" id="filter-brand">Brand</span>
+                        <div className="chips" role="group" aria-labelledby="filter-brand">
+                          {brandChips.map((b) => <button key={b} className={'chip' + (aFb.some((x) => sameBrand(x, b)) ? ' on' : '')} aria-pressed={aFb.some((x) => sameBrand(x, b))} onClick={() => toggleBrand(b)}>{b}</button>)}
+                        </div>
+                      </div>
+                    )}
+                    {matChips.length > 0 && (
+                      <div className="filter-row">
+                        <span className="filter-label" id="filter-material">Material</span>
+                        <div className="chips" role="group" aria-labelledby="filter-material">
+                          {matChips.map((m) => <button key={m} className={'chip alt' + (aFm.includes(m) ? ' on' : '')} aria-pressed={aFm.includes(m)} onClick={() => toggle(fm, setFm, m)}>{m}</button>)}
+                        </div>
+                      </div>
+                    )}
+                    {locChips.length > 0 && (
+                      <div className="filter-row">
+                        <span className="filter-label" id="filter-place">Place</span>
+                        <div className="chips" role="group" aria-labelledby="filter-place">
+                          {locChips.map((l) => <button key={l} className={'chip loc' + (aFl.includes(l) ? ' on' : '')} aria-pressed={aFl.includes(l)} onClick={() => toggle(fl, setFl, l)}>{I.pin}{l}</button>)}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 {shown.length === 0 ? (
@@ -1346,7 +1385,8 @@ export default function App() {
           </main>
         ) : (
           <main className="view" key="insights">
-            <Insights state={state} stats={stats} dark={dark} onAdd={() => setSheet({ type: 'edit', spool: null })} onBump={bump} onRestock={goRestock} toast={toast} />
+            <Insights state={state} dark={dark} onAdd={() => setSheet({ type: 'edit', spool: null })} onBump={bump} onRestock={goRestock} toast={toast}
+              brandsOn={aFb} onToggleBrand={toggleBrand} onClearBrands={() => setFb([])} />
           </main>
         )}
 
