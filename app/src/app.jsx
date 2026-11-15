@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { PieChart, Pie, Cell } from 'recharts';
 import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, changePassword, signOutOthers } from './store.js';
-import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX } from './color.js';
+import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName } from './color.js';
 import { activeNames, brandsInUse, sameBrand } from './filters.js';
 
 const MATERIALS = ['PLA', 'PLA+', 'Matte PLA', 'Silk PLA', 'PLA-CF', 'PETG', 'PETG-CF', 'TPU', 'ABS', 'ASA', 'Nylon', 'PC', 'PVB'];
@@ -461,7 +461,16 @@ function SpoolForm({ spool, seed, brands, locations, onSave, onDelete, onDuplica
           <label className="field">
             <span>Color name</span>
             <input value={f.colorName} maxLength={120} placeholder="Sky Blue" autoComplete="off" autoCapitalize="words" enterKeyHint="done"
-              onChange={(e) => { autoName.current = false; set('colorName', e.target.value); }} />
+              onChange={(e) => {
+                autoName.current = false;
+                const colorName = e.target.value;
+                setF((p) => {
+                  const next = { ...p, colorName };
+                  const guessed = hexFromName(colorName);
+                  if (guessed && !hexMatchesName(colorName, p.hex)) next.hex = guessed;
+                  return next;
+                });
+              }} />
           </label>
         </div>
       </div>

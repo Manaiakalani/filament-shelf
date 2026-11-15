@@ -38,6 +38,103 @@ export function luminance(hex) {
   const [r, g, b] = hexToRgb(hex).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
+// Longer phrases first so "light blue" wins over "blue" and "blue whale" wins over "grey".
+// Finish words (matte, silk, glitter, speckle) are ignored because they are not colors.
+const NAME_COLORS = [
+  ['rainbow', RAINBOW_HEX],
+  ['blue whale', '#4E6481'],
+  ['navy', '#1E2A5A'],
+  ['sky blue', '#3A9FE0'],
+  ['light blue', '#7EC8F0'],
+  ['baby blue', '#A9D4F5'],
+  ['digital blue', '#0066D9'],
+  ['azure', '#0066D9'],
+  ['aqua', '#5EBDDB'],
+  ['turquoise', '#3DB8C4'],
+  ['teal', '#1A9E9A'],
+  ['mint', '#7FCB9A'],
+  ['olive', '#8C8F22'],
+  ['apple green', '#84D18B'],
+  ['light green', '#A8D5B5'],
+  ['lime', '#9BCB3C'],
+  ['lemon', '#E8E06A'],
+  ['baby pink', '#F6C6CE'],
+  ['light pink', '#F5A3C0'],
+  ['pastel red', '#F0999C'],
+  ['cherry', '#E24B4B'],
+  ['chocolate', '#57361C'],
+  ['burgundy', '#7A2E36'],
+  ['maroon', '#7A2E36'],
+  ['brown', '#7B4B2A'],
+  ['beige', '#E4CFA0'],
+  ['cream', '#EED1A8'],
+  ['bone', '#E9E1CF'],
+  ['oak', '#C7955A'],
+  ['tan', '#C4A06A'],
+  ['gold', '#C9A227'],
+  ['copper', '#B5663A'],
+  ['silver', '#C5CCD2'],
+  ['lavender', '#B7A4DE'],
+  ['magenta', '#D43F9A'],
+  ['violet', '#7A45C4'],
+  ['purple', '#7A45C4'],
+  ['pink', '#F08AB0'],
+  ['green', '#1FA85A'],
+  ['yellow', '#F6C416'],
+  ['orange', '#F27A2E'],
+  ['red', '#D63A2F'],
+  ['blue', '#2E6FE0'],
+  ['grey', '#8A9098'],
+  ['gray', '#8A9098'],
+  ['white', '#F7F6F2'],
+  ['black', '#1C1D21'],
+];
+
+function nameHas(name, phrase) {
+  return new RegExp('(?:^|[^a-z])' + phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:[^a-z]|$)', 'i').test(name);
+}
+
+// The hex a color name should read as, or null when the name has no color word.
+export function hexFromName(name) {
+  const text = String(name || '');
+  for (const [phrase, hex] of NAME_COLORS) {
+    if (nameHas(text, phrase)) return hex;
+  }
+  return null;
+}
+
+function hueDist(a, b) {
+  const d = Math.abs(a - b);
+  return Math.min(d, 360 - d);
+}
+
+// Black stays black even with a little chroma. White is only the near-paper end of grey.
+function tone(hex) {
+  const c = hexToHsv(hex);
+  if (c.v <= 0.22) return { kind: 'black', ...c };
+  if (c.s < 0.16 && c.v >= 0.9) return { kind: 'white', ...c };
+  if (c.s < 0.16) return { kind: 'grey', ...c };
+  return { kind: 'color', ...c };
+}
+
+// True when the stored hex already reads as the name, so a real catalog shade can stay.
+// A name with no color word also matches: there is nothing to correct.
+export function hexMatchesName(name, hex) {
+  const want = hexFromName(name);
+  if (!want || !validHex(String(hex || ''))) return true;
+  const got = String(hex).toUpperCase();
+  if (isRainbow(want) || isRainbow(got)) return isRainbow(want) && isRainbow(got);
+  const A = tone(want);
+  const B = tone(got);
+  if (A.kind !== 'color' || B.kind !== 'color') return A.kind === B.kind;
+  if (hueDist(A.h, B.h) > 20) return false;
+  const text = String(name || '');
+  const lightName = nameHas(text, 'light') || nameHas(text, 'pale') || nameHas(text, 'pastel') || nameHas(text, 'baby');
+  if (lightName && luminance(got) < 0.4) return false;
+  if ((nameHas(text, 'dark') || nameHas(text, 'deep') || nameHas(text, 'navy')) && B.v > 0.62) return false;
+  return true;
+}
+
 // Rainbow order: neutrals first (light to dark), then by hue starting at red.
 export function hueKey(hex) {
   if (isRainbow(hex)) return 400;
