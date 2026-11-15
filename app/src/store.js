@@ -12,6 +12,40 @@ export function captureShell() {
 
 export const uid = () => 's-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+function cleanUrl(value) {
+  let url = String(value || '').trim();
+  if (!url) return '';
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) url = 'https://' + url;
+  if (!/^https?:\/\//i.test(url)) return '';
+  return url.slice(0, 200);
+}
+
+// One reorder note per brand. A link has to be http(s). Empty notes are dropped.
+export function cleanShops(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue;
+    const brand = String(row.brand || '').trim().slice(0, 80);
+    const key = brand.toLowerCase();
+    if (!brand || seen.has(key)) continue;
+    const note = String(row.note || '').trim().slice(0, 120);
+    const url = cleanUrl(row.url);
+    if (!note && !url) continue;
+    seen.add(key);
+    out.push({ brand, note, url });
+  }
+  return out.slice(0, 100);
+}
+
+export function withShop(settings, brand, note, url) {
+  const base = settings && typeof settings === 'object' ? settings : {};
+  const key = String(brand || '').trim().toLowerCase();
+  const rest = (base.shops || []).filter((s) => String(s.brand || '').trim().toLowerCase() !== key);
+  return { ...base, shops: cleanShops([...rest, { brand, note, url }]) };
+}
+
 export function normalize(raw) {
   if (!raw || typeof raw !== 'object') throw new Error('That is not a Filament Shelf backup.');
   if (!Array.isArray(raw.spools)) throw new Error('The backup has no "spools" list.');
@@ -50,6 +84,7 @@ export function normalize(raw) {
   const out = { version: 1, brands, spools, updatedAt: Number(raw.updatedAt) || 0, settings: {
     lowAt: Number.isFinite(low) ? Math.min(20, Math.max(0, low)) : 1,
     lowGrams: Number.isFinite(grams) ? Math.min(2000, Math.max(0, grams)) : 200,
+    shops: cleanShops(raw.settings && raw.settings.shops),
   } };
   if (raw.hideSampleNote) out.hideSampleNote = true;
   return out;
@@ -279,4 +314,62 @@ export function needsRestock(s, settings) {
   const lowGrams = settings && Number.isFinite(Number(settings.lowGrams)) ? Number(settings.lowGrams) : 200;
   if ((s.count || 0) <= lowAt) return true;
   return lowGrams > 0 && s.count > 0 && s.remaining != null && s.remaining <= lowGrams;
+}
+
+// Fold a second row of the same color into the one being kept. Counts add.
+// Grams stay: one open spool, and the rest of the count is full.
+export function mergeSpools(keep, other) {
+  const count = (keep.count || 0) + (other.count || 0);
+  const weight = keep.weight || other.weight || 1000;
+  const total = gramsOnHand(keep) + gramsOnHand(other);
+  const next = { ...keep, count, weight };
+  if (count > 0 && total < count * weight) next.remaining = Math.max(0, Math.min(weight, total - (count - 1) * weight));
+  else delete next.remaining;
+  if (next.price == null && other.price != null) next.price = other.price;
+  const notes = [];
+  for (const n of [keep.notes, other.notes]) {
+    const t = String(n || '').trim();
+    if (t && !notes.includes(t)) notes.push(t);
+  }
+  const here = String(keep.location || '').trim();
+  const there = String(other.location || '').trim();
+  next.location = here || there;
+  if (here && there && here.toLowerCase() !== there.toLowerCase()) {
+    const extra = 'Also in ' + there;
+    if (!notes.some((n) => n.toLowerCase().includes(there.toLowerCase()))) notes.push(extra);
+  }
+  next.notes = notes.join('\n').slice(0, 2000);
+  if (keep.isSample && other.isSample) next.isSample = true;
+  else delete next.isSample;
+  return next;
+}
+
+function restockWhy(s, lowGrams) {
+  if ((s.count || 0) === 0) return 'out';
+  if (lowGrams > 0 && s.remaining != null && s.remaining <= lowGrams) return s.remaining + ' g left';
+  return (s.count === 1 ? '1 spool left' : s.count + ' spools left');
+}
+
+// Shopping list grouped by brand, with material and how many are left.
+export function restockText(spools, settings, shops) {
+  const lowGrams = settings && Number.isFinite(Number(settings.lowGrams)) ? Number(settings.lowGrams) : 200;
+  const groups = new Map();
+  for (const s of spools || []) {
+    if (!needsRestock(s, settings)) continue;
+    const brand = s.brand || 'Unbranded';
+    const key = brand.toLowerCase();
+    if (!groups.has(key)) groups.set(key, { brand, items: [] });
+    groups.get(key).items.push(s);
+  }
+  const lines = [...groups.values()]
+    .sort((a, b) => b.items.length - a.items.length || a.brand.localeCompare(b.brand))
+    .map((g) => {
+      const shop = (shops || []).find((sh) => String(sh.brand || '').toLowerCase() === g.brand.toLowerCase());
+      const head = [g.brand];
+      if (shop && shop.note) head.push(shop.note);
+      if (shop && shop.url) head.push(shop.url);
+      const body = g.items.map((s) => s.colorName + ', ' + s.material + ' — ' + restockWhy(s, lowGrams));
+      return [head.join(' — '), ...body].join('\n');
+    });
+  return lines.join('\n\n');
 }

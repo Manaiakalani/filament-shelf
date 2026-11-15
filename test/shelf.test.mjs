@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { gramsOnHand, needsRestock, normalize, parseCsv, spoolValue, toCsv } from '../app/src/store.js';
+import { gramsOnHand, mergeSpools, needsRestock, normalize, parseCsv, restockText, spoolValue, toCsv, withShop } from '../app/src/store.js';
 import { precheck } from '../server/shelf.mjs';
 
 const color = (extra) => ({ id: 's1', brand: 'Elegoo', material: 'PLA', colorName: 'Red', hex: '#ff0000', count: 2, weight: 1000, ...extra });
@@ -41,6 +41,40 @@ test('a spreadsheet round-trips grams left and still accepts the older columns',
   assert.equal(legacy.spools[0].weight, 750);
   assert.equal(legacy.spools[0].remaining, undefined);
   assert.equal(legacy.spools[0].price, 12);
+});
+
+test('combining two rows adds the spools and keeps the grams', () => {
+  const keep = color({ id: 'a', count: 1, remaining: 400, location: 'Drybox', notes: '210' });
+  const other = color({ id: 'b', count: 2, location: 'Shelf', notes: '210', price: 18 });
+  const merged = mergeSpools(keep, other);
+  assert.equal(merged.count, 3);
+  assert.equal(merged.remaining, 400);
+  assert.equal(gramsOnHand(merged), gramsOnHand(keep) + gramsOnHand(other));
+  assert.equal(merged.location, 'Drybox');
+  assert.equal(merged.price, 18);
+  assert.match(merged.notes, /Also in Shelf/);
+  const empty = mergeSpools(color({ count: 1 }), color({ id: 'c', count: 0, notes: 'old' }));
+  assert.equal(empty.count, 1);
+  assert.equal(empty.remaining, undefined);
+  assert.equal(empty.notes, 'old');
+});
+
+test('a reorder note is kept per brand and the shopping list groups by company', () => {
+  const settings = withShop({ lowAt: 1, lowGrams: 200 }, 'Sunlu', 'Usual order', 'sunlu.example/pla');
+  assert.equal(settings.shops[0].url, 'https://sunlu.example/pla');
+  const again = withShop(settings, 'Sunlu', '', 'javascript:alert(1)');
+  assert.equal(again.shops.length, 0);
+  const state = normalize({
+    settings,
+    spools: [
+      color({ id: 'a', brand: 'Sunlu', material: 'PLA', colorName: 'Green', count: 0 }),
+      color({ id: 'b', brand: 'Sunlu', material: 'PLA+', colorName: 'Grey', count: 1 }),
+      color({ id: 'c', brand: 'Overture', material: 'PLA', colorName: 'Red', count: 4, remaining: null }),
+    ],
+  });
+  const text = restockText(state.spools, state.settings, state.settings.shops);
+  assert.match(text, /^Sunlu — Usual order — https:\/\/sunlu\.example\/pla\nGreen, PLA — out\nGrey, PLA\+ — 1 spool left/);
+  assert.doesNotMatch(text, /Overture/);
 });
 
 test('a huge shelf is refused before the full check', () => {

@@ -34,6 +34,16 @@ export function hexToHsl(hex) {
   const { h } = hexToHsv(hex);
   return { h, s: d ? d / (1 - Math.abs(2 * l - 1)) : 0, l };
 }
+// Silk, glitter, and speckle are finishes in the name or the material, not separate colors.
+export function spoolFinish(material, colorName) {
+  const text = String(material || '') + ' ' + String(colorName || '');
+  return {
+    silk: /silk/i.test(text),
+    glitter: /glitter|sparkle/i.test(text),
+    speckle: /speckle/i.test(text),
+  };
+}
+
 export function luminance(hex) {
   const [r, g, b] = hexToRgb(hex).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
