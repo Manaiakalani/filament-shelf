@@ -164,10 +164,10 @@ GitHub Actions runs those tests and a Trivy scan of the repository (vulnerabilit
 
 ## In the app
 
-- **Shelf:** search, then filter with the Brand, Material, and Place toggles. On a phone, one of those groups shows at a time. Several brands stay on together. Sort by color, brand, count, or name. Tap a spool to edit it. The stepper changes how many you have. Typing a color name sets the spool color from words in the name, such as red, light blue, or beige, when the current color does not already match. A catalog color or the mixer keeps the shade you picked.
+- **Shelf:** search, then filter with the Brand, Material, and Place toggles. On a phone, one of those groups shows at a time. Several brands stay on together. Sort by color, brand, count, or name. Tap a spool to edit it. The stepper changes how many you have. Typing a color name sets the spool color from words in the name, such as red, light blue, or beige, when the current color does not already match. A catalog color or the mixer keeps the shade you picked. Glitter, speckle, and silk show on the spool picture. If two rows are the same brand, material, color, and hex, edit one and combine them.
+- **Restock:** colors that are out, under your spool count, or under the open-spool gram warning. The list is grouped by brand. Each brand can keep a short reorder note and a link. Copy that list when you are about to order. The warning defaults to 200 g and can be turned off.
 - **Find it in the catalog:** color names, hex values, brands, and materials from the [Open Filament Database](https://github.com/OpenFilamentCollective/open-filament-database) (MIT). The license text is under **Find it in the catalog → Where this comes from**.
 - **Open spool:** record grams left on the spool you are printing from. A full spool can stay blank. Insights counts that partial spool, and the picture shows how full a single spool is.
-- **Restock:** colors that are out, under your spool count, or under the open-spool gram warning. Copy that list when you are about to order. The warning defaults to 200 g and can be turned off.
 - **Print label:** from a spool, a one-page label with the color, brand, material, place, and grams left.
 - **Insights:** kilograms on hand, what the priced colors cost, and charts by color, material, and brand. Tap a company on the brand chart to use the same brand filter. Show every brand clears it.
 - **Settings → Account:** who is signed in, a new password, and sign-out for other devices.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { hueKey, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName } from '../app/src/color.js';
+import { hueKey, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish } from '../app/src/color.js';
 
 test('rainbow is its own selectable color and sorts after real hues', () => {
   assert.equal(isRainbow(RAINBOW_HEX), true);
@@ -29,4 +29,12 @@ test('a color name picks a keyword color and leaves a matching shade alone', () 
   assert.equal(hexMatchesName('Baby Pink', '#FFE0E0'), false);
   assert.equal(hexFromName('Beige'), '#E4CFA0');
   assert.notEqual(hexFromName('Light Green'), hexFromName('Green'));
+});
+
+test('glitter and speckle are finishes, and silk in the name still counts', () => {
+  assert.deepEqual(spoolFinish('PLA', 'White Speckle'), { silk: false, glitter: false, speckle: true });
+  assert.deepEqual(spoolFinish('PLA', 'Light Pink Glitter'), { silk: false, glitter: true, speckle: false });
+  assert.equal(spoolFinish('PLA', 'Silk Rainbow').silk, true);
+  assert.equal(spoolFinish('Silk PLA', 'Red').silk, true);
+  assert.equal(spoolFinish('Matte PLA', 'Beige').silk, false);
 });

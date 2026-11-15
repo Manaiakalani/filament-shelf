@@ -356,10 +356,19 @@ button.kpi:not(:disabled):active{transform:scale(.97)}
 .legend em{font-style:normal;color:var(--ink-3);font-size:12.5px;width:32px;text-align:right;font-variant-numeric:tabular-nums}
 @media (max-width:359px){.donut-wrap{flex-direction:column;align-items:stretch}.donut{align-self:center}}
 .restock{margin-top:10px}
-.restock li{display:flex;align-items:center;gap:10px;padding:8px 0}
-.restock li+li{border-top:1px solid var(--line)}
-.restock li>div{flex:1;min-width:0}
+.restock-brand+ .restock-brand{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.restock-brand header strong{display:block;font-weight:700;font-size:16px}
+.restock-brand header small{display:block;margin-top:2px;color:var(--ink-2);font-size:13px}
+.restock-brand ul li{display:flex;align-items:center;gap:10px;padding:8px 0}
+.restock-brand ul li+li{border-top:1px solid var(--line)}
+.restock-brand ul li>div{flex:1;min-width:0}
 .restock .spool{filter:none;flex:none}
+.shop-note{margin:4px 0 2px}
+.shop-note p,.shop-note a{display:block;font-size:14px;line-height:1.35;color:var(--ink-2);overflow-wrap:anywhere}
+.shop-note a{color:var(--accent);font-weight:600}
+.shop-note form{display:grid;gap:8px;margin:4px 0 8px}
+.shop-note .field{margin:0}
+.shop-note .btn{justify-self:start}
 .mini-plus{width:44px;height:44px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;flex:none}
 .mini-plus:active{transform:scale(.9)}
 

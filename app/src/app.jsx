@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { PieChart, Pie, Cell } from 'recharts';
-import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, changePassword, signOutOthers } from './store.js';
-import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName } from './color.js';
+import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, changePassword, signOutOthers, mergeSpools, restockText, withShop } from './store.js';
+import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish } from './color.js';
 import { activeNames, brandsInUse, sameBrand } from './filters.js';
 
 const MATERIALS = ['PLA', 'PLA+', 'Matte PLA', 'Silk PLA', 'PLA-CF', 'PETG', 'PETG-CF', 'TPU', 'ABS', 'ASA', 'Nylon', 'PC', 'PVB'];
@@ -70,19 +70,35 @@ const I = {
 };
 
 /* ---------- the spool ---------- */
-function Spool({ hex, count = 1, material = '', size = 96, remaining = null, weight = 1000 }) {
+const FLECKS = [
+  [0.22, 24, 2.4], [0.48, 78, 3.4], [0.7, 132, 2.2], [0.36, 188, 4.1],
+  [0.62, 236, 2.6], [0.28, 292, 3.2], [0.74, 334, 2.3], [0.52, 40, 2.1],
+];
+
+function flecks(table, R, fill, prefix) {
+  return table.map(([t, deg, rad], i) => {
+    const rr = 24 + Math.max(0, R - 28) * t;
+    if (rr + rad > R - 0.4) return null;
+    const a = ((deg - 90) * Math.PI) / 180;
+    return <circle key={prefix + i} cx={50 + rr * Math.cos(a)} cy={50 + rr * Math.sin(a)} r={rad} fill={fill(i)} />;
+  });
+}
+
+function Spool({ hex, count = 1, material = '', colorName = '', size = 96, remaining = null, weight = 1000 }) {
   const bare = count <= 0 || (count === 1 && remaining === 0);
   const ratio = bare ? 0 : (remaining != null && count === 1 && weight > 0 ? Math.max(0.08, Math.min(1, remaining / weight)) : Math.min(Math.max(count, 0), 5) / 5);
   const out = bare;
   const fill = out ? 0 : 0.36 + 0.64 * ratio;
   const R = 19 + fill * 26;
   const rain = isRainbow(hex);
+  const finish = spoolFinish(material, colorName);
   const dark = !rain && luminance(hex) < 0.18;
   const pale = !rain && luminance(hex) > 0.78;
   const lines = [];
   for (let r = 22.4; r < R - 1; r += 3.1) lines.push(r);
-  const sheen = rain ? 0.22 : /silk/i.test(material) ? 0.85 : /matte/i.test(material) ? 0.16 : 0.32;
+  const sheen = rain ? 0.22 : finish.silk ? 0.85 : /matte/i.test(material + ' ' + colorName) ? 0.16 : 0.32;
   const wound = rain ? 'url(#sp-rainbow)' : hex;
+  const light = pale || (!rain && luminance(hex) > 0.55);
   return (
     <svg className={'spool' + (out ? ' is-out' : '') + (pale ? ' is-pale' : '')} viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
       <circle cx="50" cy="50" r="48" className="sp-flange" />
@@ -92,7 +108,9 @@ function Spool({ hex, count = 1, material = '', size = 96, remaining = null, wei
         <g>
           <circle cx="50" cy="50" r={R} fill={wound} className="sp-wound" />
           {lines.map((r) => <circle key={r} cx="50" cy="50" r={r} fill="none" stroke={dark ? 'rgba(255,255,255,.11)' : 'rgba(0,0,0,.09)'} strokeWidth="0.7" />)}
+          {finish.speckle && flecks(FLECKS, R, (i) => (light ? (i % 2 ? 'rgba(48,36,24,.62)' : 'rgba(90,70,50,.4)') : (i % 2 ? 'rgba(255,255,255,.78)' : 'rgba(255,255,255,.42)')), 's')}
           <circle cx="50" cy="50" r={R} fill="url(#sp-sheen)" opacity={sheen} className="sp-wound" />
+          {finish.glitter && flecks(FLECKS, R, (i) => (i % 3 === 0 ? 'rgba(255,231,163,.95)' : 'rgba(255,255,255,.92)'), 'g')}
           <circle cx="50" cy="50" r={R} fill="none" className="sp-edge" />
         </g>
       )}
@@ -390,7 +408,7 @@ function printLabel(s) {
   return true;
 }
 
-function SpoolForm({ spool, seed, brands, locations, onSave, onDelete, onDuplicate, onAddBrand, toast }) {
+function SpoolForm({ spool, seed, brands, locations, others = [], onSave, onDelete, onDuplicate, onCombine, onAddBrand, toast }) {
   const isNew = !spool;
   const base = spool || seed;
   const [f, setF] = useState(() => base
@@ -419,6 +437,9 @@ function SpoolForm({ spool, seed, brands, locations, onSave, onDelete, onDuplica
     setCatOpen(false);
   };
   const ok = f.colorName.trim() && f.brand && f.material.trim() && validHex(f.hex);
+  const sameName = (x) => x.id !== f.id && spoolKey(x) === spoolKey(f);
+  const twins = isNew ? [] : others.filter((x) => sameName(x) && String(x.hex).toUpperCase() === String(f.hex).toUpperCase());
+  const cousins = isNew ? [] : others.filter((x) => sameName(x) && String(x.hex).toUpperCase() !== String(f.hex).toUpperCase());
   const clean = () => {
     const pr = parseFloat(String(f.price).replace(',', '.'));
     const wt = parseInt(String(f.weight).replace(/[^0-9]/g, ''), 10);
@@ -456,7 +477,7 @@ function SpoolForm({ spool, seed, brands, locations, onSave, onDelete, onDuplica
       )}
       {catOpen && <CatalogSheet myBrands={brands} onPick={pick} onClose={() => setCatOpen(false)} />}
       <div className="form-hero">
-        <Spool hex={f.hex} count={Math.max(f.count, 0)} material={f.material} size={112} remaining={Number.isFinite(previewRemaining) ? previewRemaining : null} weight={previewWeight} />
+        <Spool hex={f.hex} count={Math.max(f.count, 0)} material={f.material} colorName={f.colorName} size={112} remaining={Number.isFinite(previewRemaining) ? previewRemaining : null} weight={previewWeight} />
         <div className="form-hero-text">
           <label className="field">
             <span>Color name</span>
@@ -560,6 +581,15 @@ function SpoolForm({ spool, seed, brands, locations, onSave, onDelete, onDuplica
       </label>
 
       {f.colorName.trim() && <div className="row-btns"><button type="button" className="btn ghost" onClick={doLabel}>Print label</button></div>}
+
+      {!isNew && twins.length > 0 && (
+        <button type="button" className="btn ghost full" onClick={() => onCombine(clean(), twins)}>
+          {twins.length === 1 ? 'Combine with the other ' + f.colorName.trim() : 'Combine with ' + twins.length + ' other copies'}
+        </button>
+      )}
+      {!isNew && cousins.length > 0 && (
+        <p className="fine">Another {f.colorName.trim()} uses a different color, so it stays its own row.</p>
+      )}
 
       <div className="form-actions">
         {!isNew && <button type="button" className="btn ghost danger-text" onClick={onDelete}>Delete</button>}
@@ -904,7 +934,39 @@ function MaterialDonut({ spools, dark }) {
   );
 }
 
-function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onToggleBrand, onClearBrands }) {
+function ShopNote({ brand, shop, onSave }) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState(shop ? shop.note : '');
+  const [url, setUrl] = useState(shop ? shop.url : '');
+  const save = (e) => {
+    e.preventDefault();
+    onSave(brand, note, url);
+    setOpen(false);
+  };
+  return (
+    <div className="shop-note">
+      {shop && shop.url ? <a href={shop.url} target="_blank" rel="noopener noreferrer">{shop.note || shop.url}</a> : shop && shop.note ? <p>{shop.note}</p> : null}
+      <button type="button" className="link-btn" onClick={() => { setNote(shop ? shop.note : ''); setUrl(shop ? shop.url : ''); setOpen(!open); }} aria-expanded={open}>
+        {open ? 'Close note' : shop ? 'Edit reorder note' : 'Add a reorder note'}
+      </button>
+      {open && (
+        <form onSubmit={save}>
+          <label className="field">
+            <span>Note for {brand}</span>
+            <input value={note} maxLength={120} placeholder="Usual shop, or a reminder" autoComplete="off" onChange={(e) => setNote(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Link <em>optional</em></span>
+            <input value={url} maxLength={200} inputMode="url" placeholder="https://" autoComplete="off" onChange={(e) => setUrl(e.target.value)} />
+          </label>
+          <button className="btn small primary" type="submit">Save note</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onToggleBrand, onClearBrands, onSaveShop }) {
   const brandsOnSafe = brandsOn || [];
   const all = state.spools;
   const spools = brandsOnSafe.length ? all.filter((s) => brandsOnSafe.some((b) => sameBrand(s.brand, b))) : all;
@@ -927,12 +989,18 @@ function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onTo
   const grams = spools.reduce((a, s) => a + gramsOnHand(s), 0);
   const priced = spools.filter((s) => s.price != null && s.count > 0);
   const value = priced.reduce((a, s) => a + spoolValue(s), 0);
+  const shops = state.settings && state.settings.shops || [];
+  const order = [...outs, ...low];
+  const byBrand = [];
+  for (const s of order) {
+    let g = byBrand.find((x) => sameBrand(x.brand, s.brand));
+    if (!g) { g = { brand: s.brand, items: [] }; byBrand.push(g); }
+    g.items.push(s);
+  }
+  byBrand.sort((a, b) => b.items.length - a.items.length || a.brand.localeCompare(b.brand));
   const copyList = () => {
-    const lines = [...outs, ...low].map((s) => {
-      const why = s.count === 0 ? 'out' : (lowGrams > 0 && s.remaining != null && s.remaining <= lowGrams ? s.remaining + ' g left' : s.count + ' left');
-      return s.colorName + ' — ' + s.brand + ', ' + s.material + ' — ' + why;
-    });
-    const p = navigator.clipboard && navigator.clipboard.writeText(lines.join('\n'));
+    const text = restockText(spools, state.settings, shops);
+    const p = navigator.clipboard && navigator.clipboard.writeText(text);
     if (p) p.then(() => toast('Copied the shopping list')).catch(() => toast('Copying is blocked in this browser'));
     else toast('Copying is blocked in this browser');
   };
@@ -974,19 +1042,34 @@ function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onTo
           {need === 0 ? <p className="sub">Nothing is running low.</p> : (
             <>
               <p className="sub">{outs.length ? plural(outs.length, 'color') + ' out' : 'Nothing out'}{low.length ? ', ' + low.length + ' low' : ''}</p>
-              <ul className="restock">
-                {[...outs, ...low].map((s) => {
-                  const gramsHit = s.count > 0 && lowGrams > 0 && s.remaining != null && s.remaining <= lowGrams;
+              <div className="restock">
+                {byBrand.map((g) => {
+                  const onHand = g.items.reduce((a, s) => a + s.count, 0);
+                  const shop = shops.find((sh) => sameBrand(sh.brand, g.brand));
                   return (
-                  <li key={s.id}>
-                    <Spool hex={s.hex} count={s.count} material={s.material} size={44} remaining={s.remaining} weight={s.weight} />
-                    <div><strong>{s.colorName}</strong><small>{s.brand}, {s.material}</small></div>
-                    {s.count === 0 ? <span className="badge out">{I.warn}Out</span> : gramsHit ? <span className="badge low">{s.remaining} g</span> : <span className="badge low">{s.count === 1 ? 'Last spool' : s.count + ' left'}</span>}
-                    <button className="mini-plus" onClick={() => onBump(s.id, 1)} aria-label={'Add a spool of ' + s.colorName}>{I.plus}</button>
-                  </li>
+                    <section key={g.brand} className="restock-brand">
+                      <header>
+                        <strong>{g.brand}</strong>
+                        <small>{plural(g.items.length, 'color')} · {onHand === 1 ? '1 spool on hand' : onHand + ' spools on hand'}</small>
+                      </header>
+                      <ShopNote brand={g.brand} shop={shop} onSave={onSaveShop} />
+                      <ul>
+                        {g.items.map((s) => {
+                          const gramsHit = s.count > 0 && lowGrams > 0 && s.remaining != null && s.remaining <= lowGrams;
+                          return (
+                            <li key={s.id}>
+                              <Spool hex={s.hex} count={s.count} material={s.material} colorName={s.colorName} size={44} remaining={s.remaining} weight={s.weight} />
+                              <div><strong>{s.colorName}</strong><small>{s.material}</small></div>
+                              {s.count === 0 ? <span className="badge out">{I.warn}Out</span> : gramsHit ? <span className="badge low">{s.remaining} g</span> : <span className="badge low">{s.count === 1 ? 'Last spool' : s.count + ' left'}</span>}
+                              <button className="mini-plus" onClick={() => onBump(s.id, 1)} aria-label={'Add a spool of ' + s.colorName}>{I.plus}</button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
                   );
                 })}
-              </ul>
+              </div>
               <button className="btn ghost full" type="button" onClick={copyList}>Copy shopping list</button>
             </>
           )}
@@ -1006,7 +1089,7 @@ function Cell_({ s, onEdit, onBump, intro, i, settings }) {
   return (
     <article className={'cell' + (out ? ' out' : '')}>
       <button className={'cell-top' + (intro ? ' roll' : '')} style={intro ? { animationDelay: Math.min(i, 12) * 45 + 'ms' } : null} onClick={() => onEdit(s)} aria-label={'Edit ' + s.colorName}>
-        <Spool hex={s.hex} count={s.count} material={s.material} size={118} remaining={s.remaining} weight={s.weight} />
+        <Spool hex={s.hex} count={s.count} material={s.material} colorName={s.colorName} size={118} remaining={s.remaining} weight={s.weight} />
       </button>
       <div className="plank" aria-hidden="true" />
       <div className="cell-info" onClick={() => onEdit(s)}>
@@ -1259,6 +1342,26 @@ export default function App() {
     const seed = { ...f }; delete seed.id; delete seed.isSample; seed.count = 1; seed.remaining = null;
     setSheet({ type: 'edit', spool: null, seed, k: Date.now() });
   };
+  const combine = (f, twins) => {
+    const extra = twins.reduce((n, s) => n + (s.count || 0), 0);
+    const places = twins.map((s) => (s.location || '').trim()).filter((loc) => loc && loc.toLowerCase() !== (f.location || '').trim().toLowerCase());
+    setConfirm({
+      title: 'Combine ' + f.colorName + '?',
+      body: 'This keeps one ' + f.colorName + ' and adds ' + plural(extra, 'spool') + ' from ' + (twins.length === 1 ? 'the other row' : twins.length + ' other rows') + '. Grams left stay with it.' + (places.length ? ' A different place is written into the notes.' : ''),
+      action: 'Combine',
+      onConfirm: () => {
+        const merged = twins.reduce((acc, row) => mergeSpools(acc, row), f);
+        const drop = new Set(twins.map((row) => row.id));
+        commit((s) => ({ ...s, spools: s.spools.filter((x) => !drop.has(x.id)).map((x) => (x.id === f.id ? merged : x)) }));
+        setSheet(null);
+        toast('Combined into one color');
+      },
+    });
+  };
+  const saveShop = (brand, note, url) => {
+    commit((s) => ({ ...s, settings: withShop(s.settings, brand, note, url) }));
+    toast(note.trim() || url.trim() ? 'Saved the reorder note' : 'Cleared the reorder note');
+  };
   const askDelete = (s) => setConfirm({
     title: 'Delete ' + s.colorName + '?', body: 'This removes ' + s.colorName + ' by ' + s.brand + ' from your shelf. If you have only run out, set the count to 0 instead and it stays on your restock list.',
     action: 'Delete', danger: true, onConfirm: () => {
@@ -1412,7 +1515,7 @@ export default function App() {
         ) : (
           <main className="view" key="insights">
             <Insights state={state} dark={dark} onAdd={() => setSheet({ type: 'edit', spool: null })} onBump={bump} onRestock={goRestock} toast={toast}
-              brandsOn={aFb} onToggleBrand={toggleBrand} onClearBrands={() => setFb([])} />
+              brandsOn={aFb} onToggleBrand={toggleBrand} onClearBrands={() => setFb([])} onSaveShop={saveShop} />
           </main>
         )}
 
@@ -1425,7 +1528,7 @@ export default function App() {
 
       {sheet && sheet.type === 'edit' && (
         <Sheet key={sheet.k || 'edit'} title={sheet.spool ? 'Edit spool' : sheet.seed ? 'Duplicate spool' : 'Add a spool'} onClose={closeSheet} tall>
-          <SpoolForm spool={sheet.spool} seed={sheet.seed} brands={state.brands} locations={locChips} onSave={saveSpool} onDelete={() => askDelete(sheet.spool)} onDuplicate={duplicate}
+          <SpoolForm spool={sheet.spool} seed={sheet.seed} brands={state.brands} locations={locChips} others={state.spools} onSave={saveSpool} onDelete={() => askDelete(sheet.spool)} onDuplicate={duplicate} onCombine={combine}
             onAddBrand={(b) => commit((s) => ({ ...s, brands: [...s.brands, b] }))} toast={toast} />
         </Sheet>
       )}
