@@ -1173,7 +1173,7 @@ function Cell_({ s, onEdit, onBump, intro, i, settings }) {
         <h3>{s.colorName}</h3>
         <p className="brand">{s.brand}</p>
         <p className="tags">
-          <span className="tag mat" style={{ '--mat': tone.fill, '--mat-ink': tone.ink }}>{s.material}</span>
+          <span className="badge mat" style={{ '--mat-soft': tone.soft, '--mat-ink': tone.ink, '--mat-bright': tone.bright }}>{s.material}</span>
           {s.location && <span className="tag loc">{I.pin}{s.location}</span>}
           {s.remaining != null && s.count > 0 && !gramsLow && <span className="tag">{s.remaining} g</span>}
           {out && <span className="badge out">{I.warn}Out — restock</span>}
