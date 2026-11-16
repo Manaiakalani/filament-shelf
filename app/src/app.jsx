@@ -111,6 +111,60 @@ function flecks(table, R, fill, prefix) {
   });
 }
 
+// Smaller than speckle, and pointed, so a glitter roll does not read as matte dots.
+const GLINTS = [
+  [0.2, 18, 1], [0.55, 42, 0], [0.78, 64, 0], [0.33, 88, 1],
+  [0.62, 112, 0], [0.25, 136, 0], [0.84, 158, 1], [0.48, 182, 0],
+  [0.7, 206, 1], [0.22, 230, 0], [0.58, 254, 0], [0.36, 278, 1],
+  [0.8, 302, 0], [0.5, 326, 1], [0.28, 350, 0], [0.66, 8, 0],
+  [0.42, 200, 1],
+];
+const GLINT_HOT = ['#ffffff', '#fff4c8', '#e7f8ff'];
+
+function starPath(x, y, r) {
+  const inner = r * 0.32;
+  let d = '';
+  for (let i = 0; i < 8; i++) {
+    const rad = i % 2 ? inner : r;
+    const a = -Math.PI / 2 + (i * Math.PI) / 4;
+    d += (i ? ' L ' : 'M ') + (x + rad * Math.cos(a)).toFixed(2) + ' ' + (y + rad * Math.sin(a)).toFixed(2);
+  }
+  return d + ' Z';
+}
+
+function glitterMarks(R, light) {
+  return GLINTS.map(([t, deg, star], i) => {
+    const rr = 23 + Math.max(0, R - 26) * t;
+    const arm = star ? 2.35 + (i % 3) * 0.55 : 0;
+    const reach = star ? arm : 1.5;
+    if (rr + reach > R - 0.45 || rr - reach < 21) return null;
+    const a = ((deg - 90) * Math.PI) / 180;
+    const x = 50 + rr * Math.cos(a);
+    const y = 50 + rr * Math.sin(a);
+    const hot = GLINT_HOT[i % 3];
+    if (star) {
+      return (
+        <g key={'g' + i}>
+          <circle cx={x} cy={y} r={arm * 0.42} fill="#fff" opacity="0.55" />
+          <path d={starPath(x, y, arm)} fill={hot} stroke="rgba(24,16,32,.45)" strokeWidth="0.32" />
+        </g>
+      );
+    }
+    const rot = (deg * 1.7 + i * 23) % 180;
+    const rx = 1.25 + (i % 3) * 0.22;
+    const ry = 0.52;
+    const body = light
+      ? (i % 2 ? 'rgba(120,48,78,.72)' : 'rgba(255,255,255,.96)')
+      : (i % 2 ? 'rgba(255,228,160,.96)' : 'rgba(255,255,255,.96)');
+    return (
+      <g key={'g' + i} transform={'rotate(' + rot + ' ' + x.toFixed(2) + ' ' + y.toFixed(2) + ')'}>
+        <ellipse cx={x} cy={y} rx={rx} ry={ry} fill={body} stroke="rgba(24,16,32,.28)" strokeWidth="0.18" />
+        <ellipse cx={x - rx * 0.22} cy={y - ry * 0.15} rx={rx * 0.34} ry={ry * 0.55} fill="#fff" />
+      </g>
+    );
+  });
+}
+
 function Spool({ hex, count = 1, material = '', colorName = '', size = 96, remaining = null, weight = 1000 }) {
   const bare = count <= 0 || (count === 1 && remaining === 0);
   const ratio = bare ? 0 : (remaining != null && count === 1 && weight > 0 ? Math.max(0.08, Math.min(1, remaining / weight)) : Math.min(Math.max(count, 0), 5) / 5);
@@ -137,7 +191,7 @@ function Spool({ hex, count = 1, material = '', colorName = '', size = 96, remai
           {!rain && lines.map((r) => <circle key={r} cx="50" cy="50" r={r} fill="none" stroke={dark ? 'rgba(255,255,255,.11)' : 'rgba(0,0,0,.09)'} strokeWidth="0.7" />)}
           {finish.speckle && flecks(FLECKS, R, (i) => (light ? (i % 2 ? 'rgba(48,36,24,.62)' : 'rgba(90,70,50,.4)') : (i % 2 ? 'rgba(255,255,255,.78)' : 'rgba(255,255,255,.42)')), 's')}
           <circle cx="50" cy="50" r={R} fill="url(#sp-sheen)" opacity={sheen} className="sp-wound" />
-          {finish.glitter && flecks(FLECKS, R, (i) => (i % 3 === 0 ? 'rgba(255,231,163,.95)' : 'rgba(255,255,255,.92)'), 'g')}
+          {finish.glitter && glitterMarks(R, !rain && luminance(hex) > 0.42)}
           <circle cx="50" cy="50" r={R} fill="none" className="sp-edge" />
         </g>
       )}
