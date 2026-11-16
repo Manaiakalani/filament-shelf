@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { PieChart, Pie, Cell } from 'recharts';
-import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, changePassword, signOutOthers, mergeSpools, restockText, withShop } from './store.js';
+import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, countIsLow, changePassword, signOutOthers, mergeSpools, restockText, withShop } from './store.js';
 import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish, materialTone } from './color.js';
 import { activeNames, brandsInUse, sameBrand } from './filters.js';
 
 const MATERIALS = ['PLA', 'PLA+', 'Matte PLA', 'Silk PLA', 'PLA-CF', 'PETG', 'PETG-CF', 'TPU', 'ABS', 'ASA', 'Nylon', 'PC', 'PVB'];
 const OTHER = { light: '#8b90a0', dark: '#6f7586' };
+
+function matStyle(name) {
+  const tone = materialTone(name);
+  return { '--mat-soft': tone.soft, '--mat-ink': tone.ink, '--mat-bright': tone.bright };
+}
 const PRESETS = [
   ['White', '#F4F3EE'], ['Light Gray', '#B9BDC4'], ['Gray', '#74787F'], ['Black', '#1E1F24'],
   ['Red', '#D63A2F'], ['Orange', '#F27A2E'], ['Yellow', '#F6C416'], ['Lime', '#9BCB3C'],
@@ -1135,7 +1140,7 @@ function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onTo
                           return (
                             <li key={s.id}>
                               <Spool hex={s.hex} count={s.count} material={s.material} colorName={s.colorName} size={44} remaining={s.remaining} weight={s.weight} />
-                              <div><strong>{s.colorName}</strong><small>{s.material}</small></div>
+                              <div><strong>{s.colorName}</strong><span className="badge mat" style={matStyle(s.material)}>{s.material}</span></div>
                               {s.count === 0 ? <span className="badge out">{I.warn}Out</span> : gramsHit ? <span className="badge low">{s.remaining} g</span> : <span className="badge low">{s.count === 1 ? 'Last spool' : s.count + ' left'}</span>}
                               <button className="mini-plus" onClick={() => onBump(s.id, 1)} aria-label={'Add a spool of ' + s.colorName}>{I.plus}</button>
                             </li>
@@ -1161,8 +1166,7 @@ function Cell_({ s, onEdit, onBump, intro, i, settings }) {
   const lowGrams = settings && Number.isFinite(settings.lowGrams) ? settings.lowGrams : 200;
   const out = s.count === 0;
   const gramsLow = !out && lowGrams > 0 && s.remaining != null && s.remaining <= lowGrams;
-  const low = !out && !gramsLow && s.count <= lowAt;
-  const tone = materialTone(s.material);
+  const low = !out && !gramsLow && countIsLow(s.count, lowAt);
   return (
     <article className={'cell' + (out ? ' out' : '')}>
       <button className={'cell-top' + (intro ? ' roll' : '')} style={intro ? { animationDelay: Math.min(i, 12) * 45 + 'ms' } : null} onClick={() => onEdit(s)} aria-label={'Edit ' + s.colorName}>
@@ -1173,7 +1177,7 @@ function Cell_({ s, onEdit, onBump, intro, i, settings }) {
         <h3>{s.colorName}</h3>
         <p className="brand">{s.brand}</p>
         <p className="tags">
-          <span className="badge mat" style={{ '--mat-soft': tone.soft, '--mat-ink': tone.ink, '--mat-bright': tone.bright }}>{s.material}</span>
+          <span className="badge mat" style={matStyle(s.material)}>{s.material}</span>
           {s.location && <span className="tag loc">{I.pin}{s.location}</span>}
           {s.remaining != null && s.count > 0 && !gramsLow && <span className="tag">{s.remaining} g</span>}
           {out && <span className="badge out">{I.warn}Out — restock</span>}
@@ -1549,7 +1553,7 @@ export default function App() {
                       <div className={'filter-row' + (shownGroup === 'material' ? ' is-on' : '')}>
                         <span className="filter-label" id="filter-material">Material</span>
                         <div className="chips" role="group" aria-labelledby="filter-material">
-                          {matChips.map((m) => <button key={m} className={'chip alt' + (aFm.includes(m) ? ' on' : '')} aria-pressed={aFm.includes(m)} onClick={() => toggle(fm, setFm, m)}>{m}</button>)}
+                          {matChips.map((m) => <button key={m} className={'chip alt mat' + (aFm.includes(m) ? ' on' : '')} style={matStyle(m)} aria-pressed={aFm.includes(m)} onClick={() => toggle(fm, setFm, m)}>{m}</button>)}
                         </div>
                       </div>
                     )}
@@ -1605,7 +1609,7 @@ export default function App() {
           <ul className="menu">
             <li><button onClick={() => setSheet({ type: 'brands' })}><div><strong>Manage brands</strong><small>Rename, add or delete. {plural(state.brands.length, 'brand')} so far.</small></div>{I.chev}</button></li>
             <li className="menu-row">
-              <div><strong>Low-stock level</strong><small>{lowAt === 0 ? 'Only flag colors that are out.' : 'Flag a color as low at ' + plural(lowAt, 'spool') + ' or fewer.'}</small></div>
+              <div><strong>Low-stock level</strong><small>{lowAt <= 1 ? 'One spool is enough. Flag a color when it is out.' : 'Flag a color when fewer than ' + lowAt + ' are left.'}</small></div>
               <div className="stepper in-form" role="group" aria-label="Low-stock level">
                 <button type="button" onClick={() => setLow(lowAt - 1)} disabled={lowAt <= 0} aria-label="Lower the level">{I.minus}</button>
                 <output>{lowAt}</output>

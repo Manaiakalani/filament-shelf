@@ -309,10 +309,19 @@ export function spoolValue(s) {
   if (s.remaining == null || weight <= 0) return s.count * s.price;
   return (s.count - 1) * s.price + s.price * (s.remaining / weight);
 }
+// One spool is a normal shelf. Level 0 or 1 only flags a color that is out.
+// Raise the level when you want a spare: 2 flags the last spool, 3 flags two or fewer.
+export function countIsLow(count, lowAt) {
+  const n = Number(count) || 0;
+  const level = Number.isFinite(Number(lowAt)) ? Number(lowAt) : 1;
+  if (n <= 0) return true;
+  return level > 1 && n < level;
+}
+
 export function needsRestock(s, settings) {
   const lowAt = settings && Number.isFinite(Number(settings.lowAt)) ? Number(settings.lowAt) : 1;
   const lowGrams = settings && Number.isFinite(Number(settings.lowGrams)) ? Number(settings.lowGrams) : 200;
-  if ((s.count || 0) <= lowAt) return true;
+  if (countIsLow(s.count, lowAt)) return true;
   return lowGrams > 0 && s.count > 0 && s.remaining != null && s.remaining <= lowGrams;
 }
 
