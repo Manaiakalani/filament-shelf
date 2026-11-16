@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { gramsOnHand, mergeSpools, needsRestock, normalize, parseCsv, restockText, spoolValue, toCsv, withShop } from '../app/src/store.js';
+import { countIsLow, gramsOnHand, mergeSpools, needsRestock, normalize, parseCsv, restockText, spoolValue, toCsv, withShop } from '../app/src/store.js';
 import { precheck } from '../server/shelf.mjs';
 
 const color = (extra) => ({ id: 's1', brand: 'Elegoo', material: 'PLA', colorName: 'Red', hex: '#ff0000', count: 2, weight: 1000, ...extra });
@@ -59,8 +59,19 @@ test('combining two rows adds the spools and keeps the grams', () => {
   assert.equal(empty.notes, 'old');
 });
 
+test('one spool is enough until the low-stock level asks for a spare', () => {
+  const one = color({ count: 1 });
+  assert.equal(countIsLow(1, 1), false);
+  assert.equal(countIsLow(0, 1), true);
+  assert.equal(needsRestock(one, { lowAt: 1, lowGrams: 200 }), false);
+  assert.equal(needsRestock(one, { lowAt: 0, lowGrams: 0 }), false);
+  assert.equal(needsRestock(one, { lowAt: 2, lowGrams: 0 }), true);
+  assert.equal(needsRestock(color({ count: 2 }), { lowAt: 2, lowGrams: 0 }), false);
+  assert.equal(needsRestock(color({ count: 1, remaining: 80 }), { lowAt: 1, lowGrams: 200 }), true);
+});
+
 test('a reorder note is kept per brand and the shopping list groups by company', () => {
-  const settings = withShop({ lowAt: 1, lowGrams: 200 }, 'Sunlu', 'Usual order', 'sunlu.example/pla');
+  const settings = withShop({ lowAt: 2, lowGrams: 200 }, 'Sunlu', 'Usual order', 'sunlu.example/pla');
   assert.equal(settings.shops[0].url, 'https://sunlu.example/pla');
   const again = withShop(settings, 'Sunlu', '', 'javascript:alert(1)');
   assert.equal(again.shops.length, 0);
