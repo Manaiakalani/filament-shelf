@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { hueKey, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish } from '../app/src/color.js';
+import { hueKey, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish, materialTone } from '../app/src/color.js';
 
 test('rainbow is its own selectable color and sorts after real hues', () => {
   assert.equal(isRainbow(RAINBOW_HEX), true);
@@ -29,6 +29,15 @@ test('a color name picks a keyword color and leaves a matching shade alone', () 
   assert.equal(hexMatchesName('Baby Pink', '#FFE0E0'), false);
   assert.equal(hexFromName('Beige'), '#E4CFA0');
   assert.notEqual(hexFromName('Light Green'), hexFromName('Green'));
+});
+
+test('each filament type keeps its own tag color', () => {
+  const live = ['PLA', 'Matte PLA', 'PLA+', 'PETG'].map((name) => materialTone(name).fill);
+  assert.equal(new Set(live).size, live.length);
+  assert.equal(materialTone('pla').fill, materialTone('PLA').fill);
+  assert.notEqual(materialTone('Silk PLA').fill, materialTone('PLA').fill);
+  assert.equal(materialTone('Wood').fill, materialTone('wood').fill);
+  assert.equal(materialTone('').fill, '#8B90A0');
 });
 
 test('glitter and speckle are finishes, and silk in the name still counts', () => {

@@ -2,14 +2,10 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { PieChart, Pie, Cell } from 'recharts';
 import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, changePassword, signOutOthers, mergeSpools, restockText, withShop } from './store.js';
-import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish } from './color.js';
+import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish, materialTone } from './color.js';
 import { activeNames, brandsInUse, sameBrand } from './filters.js';
 
 const MATERIALS = ['PLA', 'PLA+', 'Matte PLA', 'Silk PLA', 'PLA-CF', 'PETG', 'PETG-CF', 'TPU', 'ABS', 'ASA', 'Nylon', 'PC', 'PVB'];
-const SERIES = {
-  light: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'],
-  dark: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'],
-};
 const OTHER = { light: '#8b90a0', dark: '#6f7586' };
 const PRESETS = [
   ['White', '#F4F3EE'], ['Light Gray', '#B9BDC4'], ['Gray', '#74787F'], ['Black', '#1E1F24'],
@@ -978,8 +974,7 @@ function BrandBars({ spools, brands, selected, onToggle }) {
 function MaterialDonut({ spools, dark }) {
   const [sel, setSel] = useState(null);
   const data = useMemo(() => {
-    const pal = dark ? SERIES.dark : SERIES.light;
-    const out = MATERIALS.map((m, i) => ({ name: m, value: spools.filter((s) => s.material === m).reduce((a, s) => a + s.count, 0), color: pal[i] }));
+    const out = MATERIALS.map((m) => ({ name: m, value: spools.filter((s) => s.material === m).reduce((a, s) => a + s.count, 0), color: materialTone(m).fill }));
     const other = spools.filter((s) => !MATERIALS.includes(s.material)).reduce((a, s) => a + s.count, 0);
     if (other) out.push({ name: 'Other', value: other, color: dark ? OTHER.dark : OTHER.light });
     return out.filter((d) => d.value > 0);
@@ -1167,6 +1162,7 @@ function Cell_({ s, onEdit, onBump, intro, i, settings }) {
   const out = s.count === 0;
   const gramsLow = !out && lowGrams > 0 && s.remaining != null && s.remaining <= lowGrams;
   const low = !out && !gramsLow && s.count <= lowAt;
+  const tone = materialTone(s.material);
   return (
     <article className={'cell' + (out ? ' out' : '')}>
       <button className={'cell-top' + (intro ? ' roll' : '')} style={intro ? { animationDelay: Math.min(i, 12) * 45 + 'ms' } : null} onClick={() => onEdit(s)} aria-label={'Edit ' + s.colorName}>
@@ -1177,7 +1173,7 @@ function Cell_({ s, onEdit, onBump, intro, i, settings }) {
         <h3>{s.colorName}</h3>
         <p className="brand">{s.brand}</p>
         <p className="tags">
-          <span className="tag">{s.material}</span>
+          <span className="tag mat" style={{ '--mat': tone.fill, '--mat-ink': tone.ink }}>{s.material}</span>
           {s.location && <span className="tag loc">{I.pin}{s.location}</span>}
           {s.remaining != null && s.count > 0 && !gramsLow && <span className="tag">{s.remaining} g</span>}
           {out && <span className="badge out">{I.warn}Out — restock</span>}
