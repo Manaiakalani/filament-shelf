@@ -74,6 +74,33 @@ const FLECKS = [
   [0.22, 24, 2.4], [0.48, 78, 3.4], [0.7, 132, 2.2], [0.36, 188, 4.1],
   [0.62, 236, 2.6], [0.28, 292, 3.2], [0.74, 334, 2.3], [0.52, 40, 2.1],
 ];
+// Saturated and evenly spaced. A diagonal blend on the ring collapses into two muddy tones.
+const RAINBOW_COLORS = ['#ff3b30', '#ff9f0a', '#ffd60a', '#30d158', '#32ade6', '#3b6cff', '#bf5af2'];
+const RAINBOW_CONIC = 'conic-gradient(#ff3b30,#ff9f0a 16%,#ffd60a 30%,#30d158 46%,#32ade6 62%,#3b6cff 76%,#bf5af2 88%,#ff3b30)';
+
+function rainbowBands(R) {
+  const inner = 20.2;
+  const n = RAINBOW_COLORS.length;
+  const span = R - inner;
+  if (span < 2.5) return <circle cx="50" cy="50" r={Math.max(R, 8)} fill={RAINBOW_COLORS[0]} />;
+  const w = span / n;
+  return RAINBOW_COLORS.map((color, i) => (
+    <circle key={color} cx="50" cy="50" r={R - w * i - w / 2} fill="none" stroke={color} strokeWidth={w + 0.5} />
+  ));
+}
+
+function rainbowWedges(cx, cy, r) {
+  const n = RAINBOW_COLORS.length;
+  return RAINBOW_COLORS.map((color, i) => {
+    const a0 = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    const a1 = -Math.PI / 2 + ((i + 1) * 2 * Math.PI) / n;
+    const x0 = cx + r * Math.cos(a0);
+    const y0 = cy + r * Math.sin(a0);
+    const x1 = cx + r * Math.cos(a1);
+    const y1 = cy + r * Math.sin(a1);
+    return <path key={color} d={'M ' + cx + ' ' + cy + ' L ' + x0 + ' ' + y0 + ' A ' + r + ' ' + r + ' 0 0 1 ' + x1 + ' ' + y1 + ' Z'} fill={color} />;
+  });
+}
 
 function flecks(table, R, fill, prefix) {
   return table.map(([t, deg, rad], i) => {
@@ -96,18 +123,18 @@ function Spool({ hex, count = 1, material = '', colorName = '', size = 96, remai
   const pale = !rain && luminance(hex) > 0.78;
   const lines = [];
   for (let r = 22.4; r < R - 1; r += 3.1) lines.push(r);
-  const sheen = rain ? 0.22 : finish.silk ? 0.85 : /matte/i.test(material + ' ' + colorName) ? 0.16 : 0.32;
-  const wound = rain ? 'url(#sp-rainbow)' : hex;
+  const sheen = rain ? (finish.silk ? 0.28 : 0.1) : finish.silk ? 0.85 : /matte/i.test(material + ' ' + colorName) ? 0.16 : 0.32;
+  const wound = hex;
   const light = pale || (!rain && luminance(hex) > 0.55);
   return (
     <svg className={'spool' + (out ? ' is-out' : '') + (pale ? ' is-pale' : '')} viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
       <circle cx="50" cy="50" r="48" className="sp-flange" />
       {out ? (
-        <circle cx="50" cy="50" r="34" className="sp-empty" />
+        rain ? <g className="sp-wound">{rainbowBands(34)}</g> : <circle cx="50" cy="50" r="34" className="sp-empty" />
       ) : (
         <g>
-          <circle cx="50" cy="50" r={R} fill={wound} className="sp-wound" />
-          {lines.map((r) => <circle key={r} cx="50" cy="50" r={r} fill="none" stroke={dark ? 'rgba(255,255,255,.11)' : 'rgba(0,0,0,.09)'} strokeWidth="0.7" />)}
+          {rain ? <g className="sp-wound">{rainbowBands(R)}</g> : <circle cx="50" cy="50" r={R} fill={wound} className="sp-wound" />}
+          {!rain && lines.map((r) => <circle key={r} cx="50" cy="50" r={r} fill="none" stroke={dark ? 'rgba(255,255,255,.11)' : 'rgba(0,0,0,.09)'} strokeWidth="0.7" />)}
           {finish.speckle && flecks(FLECKS, R, (i) => (light ? (i % 2 ? 'rgba(48,36,24,.62)' : 'rgba(90,70,50,.4)') : (i % 2 ? 'rgba(255,255,255,.78)' : 'rgba(255,255,255,.42)')), 's')}
           <circle cx="50" cy="50" r={R} fill="url(#sp-sheen)" opacity={sheen} className="sp-wound" />
           {finish.glitter && flecks(FLECKS, R, (i) => (i % 3 === 0 ? 'rgba(255,231,163,.95)' : 'rgba(255,255,255,.92)'), 'g')}
@@ -115,7 +142,7 @@ function Spool({ hex, count = 1, material = '', colorName = '', size = 96, remai
         </g>
       )}
       <circle cx="50" cy="50" r="19" className="sp-hub" />
-      {out && <circle cx="50" cy="50" r="19" fill="none" stroke={wound} strokeWidth="3.5" />}
+      {out && !rain && <circle cx="50" cy="50" r="19" fill="none" stroke={wound} strokeWidth="3.5" />}
       {out && <circle cx="50" cy="50" r="21" fill="none" className="sp-edge" />}
       {[0, 120, 240].map((a) => {
         const t = ((a - 90) * Math.PI) / 180;
@@ -401,7 +428,7 @@ function printLabel(s) {
   const left = s.remaining == null ? '' : '<p>' + e(s.remaining) + ' g left</p>';
   const where = s.location ? '<p>' + e(s.location) + '</p>' : '';
   const dot = isRainbow(s.hex)
-    ? 'background:conic-gradient(#e5484d,#f5a524 16%,#d9d21c 28%,#30a46c 42%,#19b5c2 56%,#3e6fe8 70%,#8e4ec6 84%,#e5484d)'
+    ? 'background:' + RAINBOW_CONIC
     : 'background:' + e(s.hex);
   w.document.write('<!DOCTYPE html><html><head><title>' + e(s.colorName) + '</title><style>body{font-family:"Iowan Old Style",Georgia,serif;margin:32px;color:#1c1e26} .dot{width:84px;height:84px;border-radius:50%;border:10px solid #eceff4} h1{font-size:28px;margin:12px 0 4px} p{margin:2px 0;color:#4c5160;font-family:system-ui,sans-serif}</style></head><body><div class="dot" style="' + dot + '"></div><h1>' + e(s.colorName) + '</h1><p>' + e(s.brand) + ' · ' + e(s.material) + '</p>' + where + left + '<script>addEventListener("load",function(){print()})<\/script></body></html>');
   w.document.close();
@@ -840,10 +867,10 @@ function ColorWheel({ spools }) {
               {n.s.count ? (
                 <>
                   <circle cx={n.x} cy={n.y} r={n.r + 2} className="bub-gap" />
-                  <circle cx={n.x} cy={n.y} r={n.r} fill={isRainbow(n.s.hex) ? 'url(#sp-rainbow)' : n.s.hex} className="bub-fill" />
+                  {isRainbow(n.s.hex) ? <g className="bub-fill">{rainbowWedges(n.x, n.y, n.r)}</g> : <circle cx={n.x} cy={n.y} r={n.r} fill={n.s.hex} className="bub-fill" />}
                 </>
               ) : (
-                <circle cx={n.x} cy={n.y} r={n.r - 2} fill="none" stroke={isRainbow(n.s.hex) ? 'url(#sp-rainbow)' : n.s.hex} strokeWidth="3.5" strokeDasharray="4 3" />
+                isRainbow(n.s.hex) ? <g>{rainbowWedges(n.x, n.y, Math.max(4, n.r - 2))}</g> : <circle cx={n.x} cy={n.y} r={n.r - 2} fill="none" stroke={n.s.hex} strokeWidth="3.5" strokeDasharray="4 3" />
               )}
               {sel === n.s.id && <circle cx={n.x} cy={n.y} r={n.r + 5} className="bub-sel" />}
             </g>
@@ -1390,15 +1417,6 @@ export default function App() {
             <stop offset="0.38" stopColor="#fff" stopOpacity="0" />
             <stop offset="0.62" stopColor="#000" stopOpacity="0" />
             <stop offset="1" stopColor="#000" stopOpacity="0.22" />
-          </linearGradient>
-          <linearGradient id="sp-rainbow" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#e5484d" />
-            <stop offset="0.17" stopColor="#f5a524" />
-            <stop offset="0.34" stopColor="#d9d21c" />
-            <stop offset="0.5" stopColor="#30a46c" />
-            <stop offset="0.67" stopColor="#19b5c2" />
-            <stop offset="0.84" stopColor="#3e6fe8" />
-            <stop offset="1" stopColor="#8e4ec6" />
           </linearGradient>
         </defs>
       </svg>
