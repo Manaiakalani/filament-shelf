@@ -34,40 +34,51 @@ export function hexToHsl(hex) {
   const { h } = hexToHsv(hex);
   return { h, s: d ? d / (1 - Math.abs(2 * l - 1)) : 0, l };
 }
-// Ink is for the tag text in light mode. Fill is the dot and the wash, and it
-// stays bright enough for the material chart. The four types on the live shelf
-// sit far apart: PLA green, Matte PLA gold, PLA+ orange, PETG blue.
+// Fill is the chart color. The shelf badge uses the same recipe as "Last spool":
+// a pale wash and dark text in light mode, and a bright text on a 14% wash in the dark.
+// The four types on the live shelf sit far apart: PLA green, Matte PLA gold, PLA+ orange, PETG blue.
 const MATERIAL_TONES = [
-  ['pla', '#1F9D5A', '#0E6B3C'],
-  ['matte pla', '#C4962A', '#7A5E10'],
-  ['pla+', '#E06A2F', '#A34112'],
-  ['silk pla', '#D4539A', '#9A2E6E'],
-  ['pla-cf', '#5E7A62', '#3A4C3C'],
-  ['petg', '#3B6FE0', '#1E46A8'],
-  ['petg-cf', '#5B4BC4', '#3A2E8C'],
-  ['tpu', '#8B5CF6', '#5B32B0'],
-  ['abs', '#E24B4B', '#A82424'],
-  ['asa', '#D97706', '#8A4E04'],
-  ['nylon', '#C47A4A', '#8A4E28'],
-  ['pc', '#6E7C90', '#3E4A5C'],
-  ['pvb', '#14B8A6', '#0F766E'],
+  ['pla', '#1F9D5A'],
+  ['matte pla', '#C4962A'],
+  ['pla+', '#E06A2F'],
+  ['silk pla', '#D4539A'],
+  ['pla-cf', '#5E7A62'],
+  ['petg', '#3B6FE0'],
+  ['petg-cf', '#5B4BC4'],
+  ['tpu', '#8B5CF6'],
+  ['abs', '#E24B4B'],
+  ['asa', '#D97706'],
+  ['nylon', '#C47A4A'],
+  ['pc', '#6E7C90'],
+  ['pvb', '#14B8A6'],
 ];
-const MATERIAL_TONE = new Map(MATERIAL_TONES.map(([name, fill, ink]) => [name, { fill, ink }]));
-const SPARE_TONES = [
-  { fill: '#0F766E', ink: '#0F5550' },
-  { fill: '#BE3A6A', ink: '#8A2348' },
-  { fill: '#3F6F8C', ink: '#2A4C61' },
-  { fill: '#A16207', ink: '#713F06' },
-];
+const MATERIAL_FILL = new Map(MATERIAL_TONES.map(([name, fill]) => [name, fill]));
+const SPARE_FILLS = ['#0F766E', '#BE3A6A', '#3F6F8C', '#A16207'];
+
+function hslToHex(h, s, l) {
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => {
+    const k = (n + h / 30) % 12;
+    return (l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)) * 255;
+  };
+  return rgbToHex(f(0), f(8), f(4));
+}
+
+// Same lightness as the Last spool badge, so every type sits at the same weight.
+function badgeColors(fill) {
+  const { h, s } = hexToHsl(fill);
+  if (s < 0.15) return { fill, soft: '#E4E7EF', ink: '#525A6E', bright: '#A9B0C2' };
+  return { fill, soft: hslToHex(h, 0.84, 0.90), ink: hslToHex(h, 1, 0.28), bright: hslToHex(h, 0.86, 0.66) };
+}
 
 export function materialTone(name) {
   const key = String(name || '').trim().toLowerCase();
-  const known = MATERIAL_TONE.get(key);
-  if (known) return known;
-  if (!key) return { fill: '#8B90A0', ink: '#525A6E' };
+  const known = MATERIAL_FILL.get(key);
+  if (known) return badgeColors(known);
+  if (!key) return badgeColors('#8B90A0');
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 33 + key.charCodeAt(i)) >>> 0;
-  return SPARE_TONES[h % SPARE_TONES.length];
+  return badgeColors(SPARE_FILLS[h % SPARE_FILLS.length]);
 }
 
 // Silk, glitter, and speckle are finishes in the name or the material, not separate colors.
