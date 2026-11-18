@@ -6,7 +6,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { cleanDisplayName, hashPassword, MIN_PASSWORD, setupKeyMatches, verifyPassword } from '../server/lib.mjs';
 
-test('password hash matches the Kindred scrypt string and checks in constant form', async () => {
+test('password hash uses the scrypt string and checks in constant form', async () => {
   const stored = await hashPassword('correct horse');
   const parts = stored.split('$');
   assert.equal(parts.length, 6);

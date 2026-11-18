@@ -35,10 +35,10 @@ export function writeJsonAtomicSync(file, value) {
   } catch (e) { try { fs.unlinkSync(tmp); } catch (x) {} throw e; }
 }
 
-// Same stored string as Kindred: scrypt$N$r$p$salt$key.
+// Stored string: scrypt$N$r$p$salt$key.
 // N=16384, r=8, p=1, 16-byte salt, 32-byte key. verify reads N, r, p and the key
 // length from the string, so an older hash still checks. The password is
-// NFKC-normalized first, the same as Our Lives, so look-alike characters match.
+// NFKC-normalized first, so look-alike characters match.
 const N = 16384, R = 8, P = 1, KEYLEN = 32, MAXMEM = 64 * 1024 * 1024;
 const scrypt = (pw, salt, n, r, p, len) => new Promise((res, rej) =>
   crypto.scrypt(pw, salt, len, { N: n, r, p, maxmem: MAXMEM }, (e, k) => (e ? rej(e) : res(k))));
