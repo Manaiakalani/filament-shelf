@@ -4,7 +4,7 @@
 #   This computer only:           BIND_ADDRESS=127.0.0.1 in .env, then the same command
 #   With a Cloudflare Tunnel:     docker compose --profile tunnel up -d --build
 #
-# On nenebytes, skip the tunnel profile. That machine already runs cloudflared.
+# If cloudflared is already running, skip the tunnel profile.
 # Copy docker-compose.override.example.yml to docker-compose.override.yml and
 # point the existing tunnel at http://filament-shelf:8080.
 name: filament-shelf
@@ -44,7 +44,7 @@ services:
       options: { max-size: "5m", max-file: "3" }
 
   tunnel:
-    # Same digest Our Lives pins. Change it on purpose when you want a newer cloudflared.
+    # Pinned digest. Change it on purpose when you want a newer cloudflared.
     image: cloudflare/cloudflared@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
     container_name: filament-shelf-tunnel
     profiles: [tunnel]

@@ -1,6 +1,6 @@
 # Security
 
-Report a vulnerability in Filament Shelf privately through GitHub. This SECURITY.md is the reporting policy for the private repository:
+Report a vulnerability in Filament Shelf privately through GitHub:
 
 https://github.com/Manaiakalani/filament-shelf/security/advisories/new
 

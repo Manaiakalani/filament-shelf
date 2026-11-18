@@ -1,9 +1,34 @@
-# Filament Shelf (self-hosted)
+# Filament Shelf
 
-Your filament shelf: colors, brands, how many spools you have, and how much is left on the open one.
-It installs to your iPhone home screen like an app, and keeps the shelf in one folder you control.
+A weekend project for the spools in my garage.
 
-A fresh shelf starts with example spools so you can see the layout. Clear examples gets rid of them.
+I wanted a shelf I could open on my phone: which colors I have, how many, and what's left on the open roll. I didn't find anything else without ads, with privacy and security in mind, or that was exactly what I wanted. So I built this.
+
+It runs on a computer you control. The shelf is one folder. Nothing phones home.
+
+![The shelf](docs/screenshots/shelf.png)
+
+The pictures are a made-up shelf, so you can see the layout. A fresh install starts with example spools. Clear examples gets rid of them.
+
+It follows the light or dark setting on your phone.
+
+![The shelf in dark mode](docs/screenshots/shelf-dark.png)
+
+Insights is the same shelf as charts: what's on hand, what it cost, and a restock list grouped by brand.
+
+![Insights and the restock list](docs/screenshots/insights.png)
+
+On a phone it installs to the home screen.
+
+![Filament Shelf on a phone](docs/screenshots/shelf-phone.png)
+
+## How it fits together
+
+Your phone talks to a small Node server. That server is the page and a JSON API. Accounts, sessions, and the shelf sit in `data/` on disk. Docker is optional.
+
+![How Filament Shelf fits together](docs/diagrams/architecture.png)
+
+The drawing is also in [docs/diagrams/architecture.excalidraw](docs/diagrams/architecture.excalidraw).
 
 ---
 
@@ -23,7 +48,7 @@ You need Docker (Docker Desktop on Mac or Windows, or Docker Engine on Linux).
    The first visit asks for your name, a username, and a password. After that, sign in with those.
 4. Open **Settings**. It shows who is signed in, the low-stock level, and a backup. Use that page before you rely on the shelf.
 
-Port 3026 sits beside Kindred (3024) and Our Lives (3025). Change it with `HOST_PORT` in `.env`.
+The port is 3026 unless you change `HOST_PORT` in `.env`.
 
 Stop it with `docker compose down`. It starts again by itself after a reboot. Your shelf stays in the `data/` folder.
 
@@ -68,7 +93,7 @@ You need a free Cloudflare account and a domain on Cloudflare.
    docker compose --profile tunnel up -d --build
    ```
 
-   On nenebytes, skip this step. That machine already runs one cloudflared container. Add a public hostname on that tunnel instead of starting a second one. Point it at `http://filament-shelf:8080`. Copy `docker-compose.override.example.yml` to `docker-compose.override.yml` so the app joins the existing `docker_default` network and listens on port 3026. Run `docker compose` from the repo directory with no `-f`, or Compose will ignore the override and try to create a new network. Set `TRUST_PROXY=cloudflare` and `PUBLIC_ORIGIN` in the server `.env` once that hostname exists. Until then, leave both empty and open `http://192.168.1.16:3026` on the Wi-Fi.
+   If cloudflared is already running on this machine, skip that command. Copy `docker-compose.override.example.yml` to `docker-compose.override.yml`, point the existing tunnel at `http://filament-shelf:8080`, and set `TRUST_PROXY=cloudflare` and `PUBLIC_ORIGIN`. Run `docker compose` with no `-f`, or Compose skips the override. Do not start a second tunnel.
 
 5. Open `https://filament.yourdomain.com` and add that to your home screen instead.
 
@@ -137,7 +162,7 @@ To move to a new computer: copy the whole folder including `data/` and `.env`, t
 docker compose up -d --build
 ```
 
-`cloudflared` is pinned to a digest in `compose.yaml`, the same one Our Lives uses. To update it, change that digest on purpose, then run `docker compose --profile tunnel up -d`.
+`cloudflared` is pinned to a digest in `compose.yaml`. To update it, change that digest on purpose, then run `docker compose --profile tunnel up -d`.
 
 ## Settings (`.env`)
 
@@ -148,7 +173,7 @@ docker compose up -d --build
 | `BIND_ADDRESS` | `0.0.0.0` = your Wi-Fi can reach it; `127.0.0.1` = this computer, or the tunnel | `0.0.0.0` |
 | `SESSION_DAYS` | Days a device stays signed in | `30` |
 | `COOKIE_SECURE` | Leave empty and the cookie follows the request. `false` forces plain http cookies. | empty |
-| `TUNNEL_TOKEN` | Cloudflare Tunnel token. Leave empty on nenebytes. | empty |
+| `TUNNEL_TOKEN` | Cloudflare Tunnel token. Leave empty when a tunnel is already running. | empty |
 | `TRUST_PROXY` | `cloudflare` when a tunnel is in front | empty |
 | `PUBLIC_ORIGIN` | Your https address, for example `https://filament.example.com` | empty |
 
@@ -178,7 +203,7 @@ Shortcuts on a keyboard: `/` search, `N` new spool, `1` and `2` switch tabs, `Es
 ## Privacy and security
 
 - **Nothing leaves your server.** No analytics and no Google Fonts. Fonts are bundled. The page is locked to load only from your server, and search engines are told not to index it.
-- **Passwords:** scrypt, the same stored string Kindred uses (`scrypt$16384$8$1$salt$key`), with the password normalized the way Our Lives does (NFKC) before hashing. The hash is never the password. A check takes the same work whether or not the username exists. At least 8 characters.
+- **Passwords:** scrypt (`scrypt$16384$8$1$salt$key`). The password is NFKC-normalized before hashing. The hash is never the password. A check takes the same work whether or not the username exists. At least 8 characters.
 - **Wrong passwords** are limited three ways, each over 15 minutes: 10 misses per IP (an IPv6 /64 counts as one), a growing wait after 5 misses for the same username from that IP, and a growing wait after 20 misses on a username from anywhere. A device where you have signed in before carries a signed cookie for a year, so a stranger guessing at your username cannot lock you out of your own phone.
 - **Sessions:** random per device, stored only as a SHA-256 hash, `HttpOnly` and `SameSite=Lax`. On https they are `Secure` and use the `__Host-` cookie prefix. They last 30 days unless you change `SESSION_DAYS`.
 - **Saves** need the session's CSRF token and must come from your own page. The token is masked differently on every page load. A save is checked with the same rules the app uses, limited to 2 MB, 5,000 spools and 500 brands, and written so a crash cannot leave half a file. An edit that has not reached the server yet stays in that browser tab until it does.
