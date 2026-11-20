@@ -25,15 +25,15 @@ The pictures are a made-up shelf, so you can see the layout. A fresh install sta
 
 It follows the light or dark setting on your phone.
 
-![The shelf in dark mode](docs/screenshots/shelf-dark.png)
+<img src="docs/screenshots/shelf-dark.png" alt="The shelf in dark mode" width="800" />
 
 Insights is the same shelf as charts: what's on hand, what it cost, and a restock list grouped by brand.
 
-![Insights and the restock list](docs/screenshots/insights.png)
+<img src="docs/screenshots/insights.png" alt="Insights and the restock list" width="800" />
 
 On a phone it installs to the home screen.
 
-![Filament Shelf on a phone](docs/screenshots/shelf-phone.png)
+<img src="docs/screenshots/shelf-phone.png" alt="Filament Shelf on a phone" width="380" />
 
 ## How it fits together
 
