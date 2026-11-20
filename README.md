@@ -1,26 +1,39 @@
-# Filament Shelf
-
-A weekend project for the spools in my garage.
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg" />
+    <img src="docs/assets/logo.svg" alt="Filament Shelf logo" width="96" />
+  </picture>
+  <h1>Filament Shelf</h1>
+  <p><strong>A weekend project for the spools in my garage.</strong></p>
+  <p>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License" /></a>
+    <a href="https://github.com/Manaiakalani/filament-shelf/actions/workflows/security.yml"><img src="https://github.com/Manaiakalani/filament-shelf/actions/workflows/security.yml/badge.svg" alt="Security workflow" /></a>
+  </p>
+  <p>
+    <a href="#in-the-app">Features</a>
+    ·
+    <a href="#1-start-it">Getting started</a>
+  </p>
+  <img src="docs/assets/hero.png" alt="Filament Shelf screenshot" width="800" />
+</div>
 
 I wanted a shelf I could open on my phone: which colors I have, how many, and what's left on the open roll. I didn't find anything else without ads, with privacy and security in mind, or that was exactly what I wanted. So I built this.
 
 It runs on a computer you control. The shelf is one folder. Nothing phones home.
 
-![The shelf](docs/screenshots/shelf.png)
-
 The pictures are a made-up shelf, so you can see the layout. A fresh install starts with example spools. Clear examples gets rid of them.
 
 It follows the light or dark setting on your phone.
 
-![The shelf in dark mode](docs/screenshots/shelf-dark.png)
+<img src="docs/screenshots/shelf-dark.png" alt="The shelf in dark mode" width="800" />
 
 Insights is the same shelf as charts: what's on hand, what it cost, and a restock list grouped by brand.
 
-![Insights and the restock list](docs/screenshots/insights.png)
+<img src="docs/screenshots/insights.png" alt="Insights and the restock list" width="800" />
 
 On a phone it installs to the home screen.
 
-![Filament Shelf on a phone](docs/screenshots/shelf-phone.png)
+<img src="docs/screenshots/shelf-phone.png" alt="Filament Shelf on a phone" width="380" />
 
 ## How it fits together
 
