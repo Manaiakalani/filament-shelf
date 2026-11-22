@@ -383,19 +383,20 @@ function ColorPicker({ hex, onChange, onPreset, onGuess }) {
 
 /* ---------- catalog (Open Filament Database, MIT) ---------- */
 let CAT = null;
+const CATALOG_SOURCE = 'https://github.com/OpenFilamentCollective/open-filament-database';
 function getCatalog() {
   if (CAT) return CAT;
   const items = [], counts = {};
-  let notice = '', source = '';
+  let notice = '';
   try {
     const d = JSON.parse(document.getElementById('filament-catalog').textContent);
-    notice = d.notice || ''; source = d.source || '';
+    notice = String(d.notice || '');
     d.brands.forEach((b) => b.l.forEach((l) => l.c.forEach(([c, h]) => {
       items.push({ c, h: '#' + h, b: b.b, l: l.f, m: l.m, k: (c + ' ' + b.b + ' ' + l.f + ' ' + l.m).toLowerCase() });
       counts[b.b] = (counts[b.b] || 0) + 1;
     })));
   } catch (e) {}
-  CAT = { items, counts, notice, source };
+  CAT = { items, counts, notice };
   return CAT;
 }
 function pickMaterial(line, m) {
@@ -463,7 +464,7 @@ function CatalogSheet({ myBrands, onPick, onClose }) {
       )}
       <details className="lic">
         <summary>Where this comes from</summary>
-        <p className="fine">Colors come from the <a href={cat.source || 'https://github.com/OpenFilamentCollective/open-filament-database'} target="_blank" rel="noopener noreferrer">Open Filament Database</a>, a community project. Hex values are the database’s, so your spool may differ a little.</p>
+        <p className="fine">Colors come from the <a href={CATALOG_SOURCE} target="_blank" rel="noopener noreferrer">Open Filament Database</a>, a community project. Hex values are the database’s, so your spool may differ a little.</p>
         <p className="fine lic-text">{cat.notice}</p>
       </details>
     </Sheet>,
@@ -1635,7 +1636,7 @@ export default function App() {
             </div>
           )}
           <p className="fine">{server() ? 'Changes save a moment after you stop tapping.' : mode === 'viewonly' ? 'You are viewing a shared copy. Changes stay on this device.' : mode === 'device' ? 'Changes are kept on this device. Export a backup now and then.' : 'Changes save a moment after you stop tapping.'}</p>
-          <p className="fine">Color catalog from the <a href="https://github.com/OpenFilamentCollective/open-filament-database" target="_blank" rel="noopener noreferrer">Open Filament Database</a> (MIT license).</p>
+          <p className="fine">Color catalog from the <a href={CATALOG_SOURCE} target="_blank" rel="noopener noreferrer">Open Filament Database</a> (MIT license).</p>
           <p className="fine kbd-help">Shortcuts: <kbd className="kbd">/</kbd> search, <kbd className="kbd">N</kbd> new spool, <kbd className="kbd">1</kbd> <kbd className="kbd">2</kbd> switch tabs, <kbd className="kbd">Esc</kbd> close.</p>
         </Sheet>
       )}
