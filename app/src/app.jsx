@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell } from 'recharts';
 import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, fetchShelf, fetchShelves, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, countIsLow, changePassword, signOutOthers, mergeSpools, restockText, withShop, applyLook, rememberLook, apiJson } from './store.js';
 import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish, materialTone } from './color.js';
 import { activeNames, brandsInUse, sameBrand } from './filters.js';
+import { insightsSheetHtml } from './insights-print.js';
 
 const MATERIALS = ['PLA', 'PLA+', 'Matte PLA', 'Silk PLA', 'PLA-CF', 'PETG', 'PETG-CF', 'TPU', 'ABS', 'ASA', 'Nylon', 'PC', 'PVB'];
 const OTHER = { light: '#8b90a0', dark: '#6f7586' };
@@ -77,7 +78,8 @@ const I = {
   people: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="16.4" cy="9.1" r="2" /><path d="M13.6 18.6c.3-2.1 1.6-3.3 3.2-3.4 1.5.1 2.6 1.2 3 3.4" /><circle cx="9" cy="8.1" r="2.5" /><path d="M3.8 19c.4-2.8 2.3-4.3 5.2-4.3s4.8 1.5 5.2 4.3" /></svg>,
   user: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3" /><path d="M5 19.2c.6-3.2 3.1-4.9 7-4.9s6.4 1.7 7 4.9" /></svg>,
   tag: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 12.2 12 4.8h7.2v7.2L11.8 19.4z" /><circle className="hole" cx="8.4" cy="8.6" r="1.15" /></svg>,
-  spool: <svg viewBox="0 0 24 24" aria-hidden="true"><path className="hole" fillRule="evenodd" d="M12 4.2a7.8 7.8 0 1 1 0 15.6 7.8 7.8 0 0 1 0-15.6zm0 5a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6z" /></svg>,
+  stock: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M4.5 12h10M4.5 17h6" /></svg>,
+  open: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="12" r="5.2" /><circle cx="10" cy="12" r="1.6" /><path d="M15.2 12H20" /></svg>,
   upload: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4.6M8.2 8.2 12 4.4l3.8 3.8" /><path d="M5.2 15.4v3.2c0 .7.5 1.2 1.2 1.2h11.2c.7 0 1.2-.5 1.2-1.2v-3.2" /></svg>,
   download: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.4v10.4M8.2 11.2 12 15l3.8-3.8" /><path d="M5.2 15.4v3.2c0 .7.5 1.2 1.2 1.2h11.2c.7 0 1.2-.5 1.2-1.2v-3.2" /></svg>,
 };
@@ -426,7 +428,9 @@ function CatalogSheet({ myBrands, onPick, onClose }) {
   const [brand, setBrand] = useState(null);
   const [lim, setLim] = useState(60);
   const mine = useMemo(() => new Set(myBrands.map((b) => b.toLowerCase())), [myBrands]);
-  const brandList = useMemo(() => Object.keys(cat.counts).sort((a, b) => (mine.has(a.toLowerCase()) ? 0 : 1) - (mine.has(b.toLowerCase()) ? 0 : 1) || a.localeCompare(b)), [cat, mine]);
+  const brandList = useMemo(() => Object.keys(cat.counts).sort((a, b) => a.localeCompare(b)), [cat]);
+  const mineNames = useMemo(() => brandList.filter((b) => mine.has(b.toLowerCase())), [brandList, mine]);
+  const otherNames = useMemo(() => brandList.filter((b) => !mine.has(b.toLowerCase())), [brandList, mine]);
   const results = useMemo(() => {
     const toks = q.toLowerCase().split(/\s+/).filter(Boolean);
     if (!toks.length && !brand) return null;
@@ -447,11 +451,24 @@ function CatalogSheet({ myBrands, onPick, onClose }) {
           onKeyDown={(e) => { if (e.key === 'Enter' && results && results[0]) { e.preventDefault(); onPick(results[0]); } }} />
         {q && <button type="button" className="icon-btn tiny" onClick={() => setQ('')} aria-label="Clear search">{I.close}</button>}
       </label>
-      <div className="chips cat-chips" aria-label="Brands">
-        {brandList.map((b) => <button type="button" key={b} className={'chip' + (brand === b ? ' on' : '')} aria-pressed={brand === b} onClick={() => setBrand(brand === b ? null : b)}>{b}</button>)}
-      </div>
+      <label className="field cat-maker">
+        <span>Manufacturer</span>
+        <select value={brand || ''} onChange={(e) => setBrand(e.target.value || null)}>
+          <option value="">All manufacturers</option>
+          {mineNames.length > 0 && (
+            <optgroup label="On your shelf">
+              {mineNames.map((b) => <option key={b} value={b}>{b}</option>)}
+            </optgroup>
+          )}
+          {otherNames.length > 0 && (
+            <optgroup label={mineNames.length ? 'Other manufacturers' : 'Manufacturers'}>
+              {otherNames.map((b) => <option key={b} value={b}>{b}</option>)}
+            </optgroup>
+          )}
+        </select>
+      </label>
       {results === null ? (
-        <p className="lead cat-hint">Search by color, brand or product line, or pick a brand to browse its colors. Tap one to fill in the name, color, brand and material.</p>
+        <p className="lead cat-hint">Search by color or product line, or choose a manufacturer to browse its colors. Tap one to fill in the name, color, brand and material.</p>
       ) : results.length === 0 ? (
         <div className="empty slim">
           <h2>No match</h2>
@@ -499,6 +516,13 @@ function printLabel(s) {
     ? 'background:' + RAINBOW_CONIC
     : 'background:' + e(s.hex);
   w.document.write('<!DOCTYPE html><html><head><title>' + e(s.colorName) + '</title><style>body{font-family:"Iowan Old Style",Georgia,serif;margin:32px;color:#1c1e26} .dot{width:84px;height:84px;border-radius:50%;border:10px solid #eceff4} h1{font-size:28px;margin:12px 0 4px} p{margin:2px 0;color:#4c5160;font-family:system-ui,sans-serif}</style></head><body><div class="dot" style="' + dot + '"></div><h1>' + e(s.colorName) + '</h1><p>' + e(s.brand) + ' · ' + e(s.material) + '</p>' + where + left + '<script>addEventListener("load",function(){print()})<\/script></body></html>');
+  w.document.close();
+  return true;
+}
+function printInsights(opts) {
+  const w = window.open('', '_blank', 'noopener,width=840,height=1000');
+  if (!w) return false;
+  w.document.write(insightsSheetHtml(opts));
   w.document.close();
   return true;
 }
@@ -1077,7 +1101,7 @@ function ShopNote({ brand, shop, onSave }) {
   );
 }
 
-function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onToggleBrand, onClearBrands, onSaveShop, lookOnly }) {
+function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onToggleBrand, onClearBrands, onSaveShop, lookOnly, ownerName }) {
   const brandsOnSafe = brandsOn || [];
   const all = state.spools;
   const spools = brandsOnSafe.length ? all.filter((s) => brandsOnSafe.some((b) => sameBrand(s.brand, b))) : all;
@@ -1115,6 +1139,10 @@ function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onTo
     if (p) p.then(() => toast('Copied the shopping list')).catch(() => toast('Copying is blocked in this browser'));
     else toast('Copying is blocked in this browser');
   };
+  const printSheet = () => {
+    const ok = printInsights({ spools, brands: state.brands, ownerName, brandFilter: brandsOnSafe, when: new Date() });
+    if (!ok) toast('Allow pop-ups to print this picture');
+  };
   return (
     <div className="insights">
       <section className="kpis" aria-label="Stock summary">
@@ -1124,7 +1152,10 @@ function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onTo
       </section>
       <div className="col">
         <section className="panel">
-          <h2>Your colors</h2>
+          <div className="panel-head">
+            <h2>Your colors</h2>
+            <button type="button" className="btn ghost small" onClick={printSheet}>Print</button>
+          </div>
           <p className="sub">{brandsOnSafe.length ? brandsOnSafe.join(' · ') + ' · ' : ''}{plural(new Set(spools.map((s) => s.hex.toUpperCase())).size, 'color')} across {plural(spools.reduce((a, s) => a + s.count, 0), 'spool')}</p>
           {strand.length > 0 && (
             <div className="strand" role="img" aria-label="All your spools laid end to end in rainbow order">
@@ -1919,7 +1950,7 @@ export default function App() {
           </main>
         ) : (
           <main className="view" key="insights">
-            <Insights state={state} dark={dark} lookOnly={lookOnly} onAdd={() => { if (!lookOnly) setSheet({ type: 'edit', spool: null }); }} onBump={lookOnly ? null : bump} onRestock={goRestock} toast={toast}
+            <Insights state={state} dark={dark} lookOnly={lookOnly} ownerName={ownerName} onAdd={() => { if (!lookOnly) setSheet({ type: 'edit', spool: null }); }} onBump={lookOnly ? null : bump} onRestock={goRestock} toast={toast}
               brandsOn={aFb} onToggleBrand={toggleBrand} onClearBrands={() => setFb([])} onSaveShop={lookOnly ? null : saveShop} />
           </main>
         )}
@@ -1953,7 +1984,7 @@ export default function App() {
           {!lookOnly && <ul className="menu">
             <MenuButton ico={I.tag} title="Manage brands" detail={'Rename, add or delete. ' + plural(state.brands.length, 'brand') + ' so far.'} onClick={() => setSheet({ type: 'brands' })} />
             <li className="menu-row">
-              <span className="menu-ico warn">{I.warn}</span>
+              <span className="menu-ico">{I.stock}</span>
               <div><strong>Low-stock level</strong><small>{lowAt <= 1 ? 'One spool is enough. Flag a color when it is out.' : 'Flag a color when fewer than ' + lowAt + ' are left.'}</small></div>
               <div className="stepper in-form" role="group" aria-label="Low-stock level">
                 <button type="button" onClick={() => setLow(lowAt - 1)} disabled={lowAt <= 0} aria-label="Lower the level">{I.minus}</button>
@@ -1962,7 +1993,7 @@ export default function App() {
               </div>
             </li>
             <li className="menu-row">
-              <span className="menu-ico warn">{I.spool}</span>
+              <span className="menu-ico">{I.open}</span>
               <div><strong>Open-spool warning</strong><small>{lowGrams === 0 ? 'Don’t flag an open spool by weight.' : 'Flag an open spool at ' + lowGrams + ' g or less.'}</small></div>
               <div className="stepper in-form" role="group" aria-label="Open-spool warning">
                 <button type="button" onClick={() => setLowGrams(lowGrams - 50)} disabled={lowGrams <= 0} aria-label="Lower the grams">{I.minus}</button>
