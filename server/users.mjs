@@ -37,7 +37,7 @@ const need = () => { if (!USERNAME_RE.test(name)) die('Give a username: 1–32 c
 switch (cmd) {
   case 'add':
     need(); if (users.users[name]) die(name + ' already exists. Use passwd to change the password.');
-    users.users[name] = { hash: await newPassword(), changed: Date.now() }; save(); console.log('Added ' + name + '.'); break;
+    users.users[name] = { hash: await newPassword(), role: Object.keys(users.users).length ? 'member' : 'admin', changed: Date.now() }; save(); console.log('Added ' + name + '.'); break;
   case 'passwd':
     need(); if (!users.users[name]) die('No user named ' + name + '.');
     users.users[name] = { ...users.users[name], hash: await newPassword(), changed: Date.now() }; save(); console.log('Changed the password for ' + name + ' and signed them out everywhere.'); break;
@@ -48,7 +48,9 @@ switch (cmd) {
     need(); if (!users.users[name]) die('No user named ' + name + '.');
     delete users.users[name]; save(); console.log('Removed ' + name + '.'); break;
   case 'list': {
-    const n = Object.keys(users.users); console.log(n.length ? n.join('\n') : 'No users yet. Add one with: node server/users.mjs add <name>'); break;
+    const n = Object.keys(users.users);
+    console.log(n.length ? n.map((id) => id + (users.users[id].role === 'admin' ? '\tadmin' : '')).join('\n') : 'No users yet. Add one with: node server/users.mjs add <name>');
+    break;
   }
   default:
     console.log('Usage: node server/users.mjs add|passwd|signout|remove <name>   or   list'); process.exit(cmd ? 1 : 0);

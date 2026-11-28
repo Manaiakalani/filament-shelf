@@ -116,37 +116,42 @@ Only set `TRUST_PROXY=cloudflare` when the tunnel is in front. Without the tunne
 
 ## Accounts
 
-The first visit creates the account when `data/users.json` has nobody in it. Set `SETUP_KEY` in `.env` if that address is already reachable past your own Wi-Fi. The setup page asks for the key before it creates the account, then the page closes.
+The first visit creates the account when `data/users.json` has nobody in it. That account is the admin. If accounts already exist and none of them is an admin, the first account becomes the admin the next time the server starts. Set `SETUP_KEY` in `.env` if that address is already reachable past your own Wi-Fi. The setup page asks for the key before it creates the account, then the page closes.
 
-Add someone else, or skip the page and create the account from the terminal, inside the running container:
+An admin adds someone from **Settings → People**. Enter their name and a username, then copy the link and send it yourself. The link works once and expires after 7 days. They choose their own password. The server stores a SHA-256 hash of the link, not the link. The same sheet can send a new password link to someone who already has an account. Opening that link replaces their password and signs them out everywhere.
+
+An admin can remove an account. They cannot remove themselves, and they cannot remove the last admin. Removing someone signs them out.
+
+The terminal can still add an account inside the running container. The first user it adds is an admin. Later users are members. It asks for a password twice. Use at least 8 characters.
 
 ```sh
 docker compose exec app node server/users.mjs add marsh
 ```
 
-It asks for a password twice. Use at least 8 characters.
-
 | Command | What it does |
 |---|---|
-| `add <name>` | Add a user |
+| `add <name>` | Add a user. The first user is an admin. Later users are members. |
 | `passwd <name>` | Change a password and sign that user out everywhere |
 | `signout <name>` | Sign someone out on every device |
 | `remove <name>` | Remove a user |
-| `list` | List users |
+| `list` | List users. An admin is marked. |
 
 Run each one as `docker compose exec app node server/users.mjs …`.
 
-In the app, **Settings → Account** changes your password and signs out other devices. The device you are using stays signed in. A password change stores a new scrypt hash and drops the other sessions.
+In the app, **Settings → Account** changes your own password and signs out other devices. The device you are using stays signed in. A password change stores a new scrypt hash and drops the other sessions.
 
-Everyone you add sees and edits the same shelf. Other devices pick up a change when you switch back to the app. If two devices edit at once, the second one is asked whether to keep its version or load the other one.
+**Settings → Appearance** is Match this device, Light, or Dark. **Settings → Fonts** picks a title face and a body face. Both are saved on the account, so they follow that person to another device. Titles are Bricolage Grotesque, Fraunces, or the system font. Body text is Instrument Sans, Nunito, or the system font. A printed spool label stays in Iowan Old Style or Georgia.
+
+Everyone who can sign in sees and edits the same shelf. Other devices pick up a change when you switch back to the app. If two devices edit at once, the second one is asked whether to keep its version or load the other one.
 
 ## Backups
 
 Everything lives in `data/`:
 
 - `shelf.json`: the shelf
-- `users.json`: accounts and scrypt password hashes
+- `users.json`: accounts, roles, and scrypt password hashes
 - `sessions.json`: sign-ins, stored as SHA-256 hashes
+- `invites.json`: one-time links, stored as SHA-256 hashes. A link works once and expires after 7 days.
 - `secret.key`: signs the "known device" cookie
 - `backups/`: an hourly snapshot while you are editing, newest 72 kept
 
@@ -208,6 +213,9 @@ GitHub Actions runs those tests and a Trivy scan of the repository (vulnerabilit
 - **Open spool:** record grams left on the spool you are printing from. A full spool can stay blank. Insights counts that partial spool, and the picture shows how full a single spool is.
 - **Print label:** from a spool, a one-page label with the color, brand, material, place, and grams left.
 - **Insights:** kilograms on hand, what the priced colors cost, and charts by color, material, and brand. Tap a company on the brand chart to use the same brand filter. Show every brand clears it.
+- **Settings → Appearance:** Match this device, Light, or Dark. Saved on the account.
+- **Settings → Fonts:** a title face and a body face, with a live preview. Saved on the account.
+- **Settings → People:** an admin creates a one-time link, sends a new password link, or removes an account.
 - **Settings → Account:** who is signed in, a new password, and sign-out for other devices.
 - **Export and import:** JSON backup or CSV. A spreadsheet can come back in later, including older files that have no grams-left column.
 
