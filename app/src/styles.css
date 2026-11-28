@@ -86,6 +86,18 @@ h1{font:800 clamp(44px,13.6vw,64px)/.86 var(--display);letter-spacing:-.045em;fo
 .theme-toggle button svg{width:16px;height:16px;stroke-width:1.9}
 .theme-toggle button:disabled{color:var(--ink-3);cursor:not-allowed}
 .theme-toggle button.on:disabled{color:var(--ink-2)}
+.who-row{display:flex;gap:8px;margin-top:14px;overflow-x:auto;scrollbar-width:none}
+.who-row::-webkit-scrollbar{display:none}
+.who-row button{min-height:44px;padding:0 16px;border-radius:999px;background:var(--surface);color:var(--ink-2);box-shadow:var(--shadow);font-weight:650;font-size:15px;flex:none}
+.who-row button.on{background:var(--ink);color:var(--surface)}
+.cell.is-quiet .cell-top,.cell.is-quiet .cell-info{cursor:default}
+.cell.is-quiet .cell-top:active .spool,.cell.is-quiet .cell-top:hover .spool{transform:none}
+.cell.is-quiet .cell-info:hover h3{text-decoration:none}
+.cell.is-quiet .stepper button{cursor:default;background:var(--surface-2);color:var(--ink-3)}
+.cell.is-quiet .stepper button:last-child{background:var(--surface-2);color:var(--ink-3)}
+.cell.is-quiet .stepper button:hover,.cell.is-quiet .stepper button:active{filter:none;transform:none}
+.dock .add:disabled{background:var(--surface-2);color:var(--ink-3);box-shadow:none;cursor:not-allowed}
+.dock .add:disabled:hover,.dock .add:disabled:active{transform:none}
 
 /* banner */
 .view{animation:fade .28s ease both}

@@ -120,7 +120,7 @@ The first visit creates the account when `data/users.json` has nobody in it. Tha
 
 An admin adds someone from **Settings → People**. Enter their name and a username, then copy the link and send it yourself. The link works once and expires after 7 days. They choose their own password. The server stores a SHA-256 hash of the link, not the link. The same sheet can send a new password link to someone who already has an account. Opening that link replaces their password and signs them out everywhere.
 
-An admin can remove an account. They cannot remove themselves, and they cannot remove the last admin. Removing someone signs them out.
+An admin can remove an account. They cannot remove themselves, and they cannot remove the last admin. Removing someone signs them out. Their shelf file stays, so the same username gets that shelf back.
 
 The terminal can still add an account inside the running container. The first user it adds is an admin. Later users are members. It asks for a password twice. Use at least 8 characters.
 
@@ -142,20 +142,24 @@ In the app, **Settings → Account** changes your own password and signs out oth
 
 **Light and dark** sit at the top right of the home page, next to Settings: Match this device, Light, or Dark. The choice saves on the account as soon as you tap it, so it follows that person to another device. **Settings → Fonts** picks a title face and a body face, also saved on the account. Titles are Bricolage Grotesque, Fraunces, Quicksand, Fredoka, Outfit, or the system font. Body text is Instrument Sans, Nunito, Quicksand, Figtree, Outfit, or the system font. A printed spool label stays in Iowan Old Style or Georgia.
 
-Everyone who can sign in sees and edits the same shelf. Other devices pick up a change when you switch back to the app. If two devices edit at once, the second one is asked whether to keep its version or load the other one.
+Each account has its own shelf. You edit yours. When more than one person has an account, their names sit under the title, and you can open another shelf to look. Only the owner can change it. Your fonts, light and dark, and account stay yours while you look. A new account starts empty. The first account keeps the shelf that was already there, including the one this app used before shelves were split.
+
+Other devices pick up a change to your shelf when you switch back to the app. If two of your devices edit your shelf at once, the second one is asked whether to keep its version or load the other one.
 
 ## Backups
 
 Everything lives in `data/`:
 
-- `shelf.json`: the shelf
+- `shelves/<username>.json`: that account's shelf
+- `shelves.json`: remembers that the old shared shelf has already been moved
+- `shelf.json`: the shelf from before each account had its own. It stays on disk and is not read again after the move. Copying a new `shelf.json` over it does not change what people see.
 - `users.json`: accounts, roles, and scrypt password hashes
 - `sessions.json`: sign-ins, stored as SHA-256 hashes
 - `invites.json`: one-time links, stored as SHA-256 hashes. A link works once and expires after 7 days.
 - `secret.key`: signs the "known device" cookie
-- `backups/`: an hourly snapshot while you are editing, newest 72 kept
+- `backups/`: an hourly snapshot of every shelf while someone is editing, newest 72 kept. Older snapshots may be a single `shelf-*.json`.
 
-In the app, **Settings → Export** copies a JSON backup or a CSV spreadsheet. **Import** can replace the shelf or add to it.
+In the app, **Settings → Export** copies a JSON backup or a CSV spreadsheet of the shelf you are looking at. **Import** replaces your shelf or adds to it. Import is hidden while you are looking at someone else's shelf.
 
 Copy the folder:
 
@@ -163,10 +167,11 @@ Copy the folder:
 cp -R data filament-backup-$(date +%F)
 ```
 
-Restore a backup file. The tool checks it, saves the current shelf first, and writes the new one:
+Restore a backup. A `shelves-*.json` file puts each account back. An older single shelf file goes to the account you name, or to the admin when you leave the name off. The tool saves the current copy first. Restart afterwards. The running app does not see a restore until it starts again.
 
 ```sh
-docker compose exec -T app node server/restore.mjs < shelf-2026-11-13T09-00-00.json
+docker compose exec -T app node server/restore.mjs < shelves-2026-11-27T09-00-00.json
+docker compose exec -T app node server/restore.mjs kloey < shelf-2026-11-13T09-00-00.json
 docker compose restart app
 ```
 
@@ -208,6 +213,7 @@ GitHub Actions runs those tests and a Trivy scan of the repository (vulnerabilit
 ## In the app
 
 - **Shelf:** search, then filter with the Brand, Material, and Place toggles. On a phone, one of those groups shows at a time. Several brands stay on together. Sort by color, brand, count, or name. Tap a spool to edit it. The stepper changes how many you have. Typing a color name sets the spool color from words in the name, such as red, light blue, or beige, when the current color does not already match. A catalog color or the mixer keeps the shade you picked. Glitter, speckle, and silk show on the spool picture. If two rows are the same brand, material, color, and hex, edit one and combine them.
+- **Whose shelf:** each person edits their own. With two or more accounts, the names under the title open someone else's shelf. You can look and export. Only the owner can add, edit, or import. A visit starts on your shelf.
 - **Restock:** colors that are out, or under the open-spool gram warning. One spool is enough, so a single roll is not low. Raise the low-stock level when you want a spare on hand. The list is grouped by brand, and each color keeps its material badge. Each brand can keep a short reorder note and a link. Copy that list when you are about to order. The gram warning defaults to 200 g and can be turned off.
 - **Find it in the catalog:** color names, hex values, brands, and materials from the [Open Filament Database](https://github.com/OpenFilamentCollective/open-filament-database) (MIT). The license text is under **Find it in the catalog → Where this comes from**.
 - **Open spool:** record grams left on the spool you are printing from. A full spool can stay blank. Insights counts that partial spool, and the picture shows how full a single spool is.

@@ -7,8 +7,8 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import {
-  DATA_DIR, USERS_FILE, SESSIONS_FILE, INVITES_FILE, SHELF_FILE, BACKUP_DIR,
-  readJson, writeJsonAtomic, writeJsonAtomicSync, verifyPassword, hashPassword, USERNAME_RE,
+  DATA_DIR, USERS_FILE, SESSIONS_FILE, INVITES_FILE, SHELF_FILE, SHELVES_META, BACKUP_DIR,
+  readJson, writeJsonAtomic, writeJsonAtomicSync, verifyPassword, hashPassword, USERNAME_RE, shelfFile,
   MIN_PASSWORD, setupKeyMatches, cleanDisplayName, THEMES, DISPLAY_FONTS, BODY_FONTS, INVITE_MS,
 } from './lib.mjs';
 
@@ -282,26 +282,144 @@ function knownDevice(req, name) {
 }
 let hashing = 0; // cap parallel scrypt work so a flood of sign-ins can't pin the CPU
 
-/* ---------------- the shelf ---------------- */
-let shelf;
-try { const raw = readJson(SHELF_FILE, null); shelf = raw ? toShelf(raw) : null; }
-catch (e) {
-  console.error('\n' + SHELF_FILE + ' is not a usable shelf (' + e.message + ').\nRestore one with: docker compose exec -T app node server/restore.mjs < backup.json\nor move the file away to start fresh.\n');
+/* ---------------- shelves: one file per account ---------------- */
+const shelves = new Map();
+let legacy = null;
+let migrated = false;
+
+function emptyShelf() {
+  return { rev: 1, state: cap(normalize({ version: 1, brands: [], spools: [], settings: { lowAt: 1, lowGrams: 200 }, hideSampleNote: true })) };
+}
+function readShelfFile(file) {
+  const raw = readJson(file, null);
+  return raw ? toShelf(raw) : null;
+}
+function dieShelf(file, err) {
+  console.error('\n' + file + ' is not a usable shelf (' + err.message + ').\nRestore one with: docker compose exec -T app node server/restore.mjs < backup.json\nor move the file away to start fresh.\n');
   process.exit(1);
 }
-if (!shelf) {
-  shelf = { rev: 1, state: cap(normalize(JSON.parse(fs.readFileSync(path.join(WEB, 'seed.json'), 'utf8')))) };
-  writeJsonAtomicSync(SHELF_FILE, shelf);
-  log('Started a new shelf with example spools in', DATA_DIR);
+function loadShared() {
+  let raw;
+  try { raw = readJson(SHELF_FILE, null); }
+  catch (e) { dieShelf(SHELF_FILE, e); }
+  if (!raw) return null;
+  try { return toShelf(raw); }
+  catch (e) { dieShelf(SHELF_FILE, e); }
 }
+function shelfOwnerName() {
+  let meta = null;
+  try { meta = readJson(SHELVES_META, null); }
+  catch (e) { dieShelf(SHELVES_META, e); }
+  if (meta && USERNAME_RE.test(String(meta.owner || ''))) return String(meta.owner);
+  const u = users();
+  const names = Object.keys(u);
+  return names.find((n) => u[n] && u[n].role === 'admin') || names[0] || '';
+}
+// The shelf that existed before accounts had their own moves once, onto the admin.
+// shelves.json remembers that, so a restart does not copy the old file over a newer shelf.
+function migrateShelves() {
+  let meta = null;
+  try { meta = readJson(SHELVES_META, null); }
+  catch (e) { dieShelf(SHELVES_META, e); }
+  const names = Object.keys(users());
+  if (!names.length) {
+    // No account yet. Keep the single shelf in memory until the first person claims it.
+    legacy = loadShared();
+    if (!legacy) {
+      legacy = { rev: 1, state: cap(normalize(JSON.parse(fs.readFileSync(path.join(WEB, 'seed.json'), 'utf8')))) };
+      writeJsonAtomicSync(SHELF_FILE, legacy);
+      log('Started a new shelf with example spools in', DATA_DIR);
+    }
+    return;
+  }
+  if (meta && meta.migrated) { migrated = true; return; }
+  const owner = shelfOwnerName();
+  if (!USERNAME_RE.test(owner)) return;
+  const file = shelfFile(owner);
+  let record = null;
+  if (fs.existsSync(file)) {
+    try { record = readShelfFile(file); }
+    catch (e) { dieShelf(file, e); }
+  } else {
+    record = loadShared() || emptyShelf();
+    writeJsonAtomicSync(file, record);
+    log('Moved the shared shelf to', owner);
+  }
+  if (!record) record = emptyShelf();
+  shelves.set(owner, record);
+  writeJsonAtomicSync(SHELVES_META, { migrated: true, owner });
+  migrated = true;
+}
+migrateShelves();
+
+// Writes the first account's shelf before the account itself, so a crash can still be retried.
+async function claimLegacy(user) {
+  if (migrated || !USERNAME_RE.test(user)) return;
+  const file = shelfFile(user);
+  if (!fs.existsSync(file)) await writeJsonAtomic(file, legacy || emptyShelf());
+  let record = null;
+  try { record = readShelfFile(file); }
+  catch (e) { throw e; }
+  shelves.set(user, record || legacy || emptyShelf());
+}
+async function finishClaim(user) {
+  if (!USERNAME_RE.test(user)) throw new Error('bad username');
+  if (!shelves.has(user)) await claimLegacy(user);
+  if (migrated) return;
+  migrated = true;
+  legacy = null;
+  await writeJsonAtomic(SHELVES_META, { migrated: true, owner: user });
+}
+function shelfOf(user) {
+  if (!USERNAME_RE.test(user) || !users()[user]) return null;
+  if (shelves.has(user)) return shelves.get(user);
+  const file = shelfFile(user);
+  let record = null;
+  try { record = readShelfFile(file); }
+  catch (e) { throw e; }
+  if (!record) {
+    record = emptyShelf();
+    writeJsonAtomicSync(file, record);
+  }
+  shelves.set(user, record);
+  return record;
+}
+function listShelves() {
+  const u = users();
+  return Object.keys(u).filter((user) => USERNAME_RE.test(user)).map((user) => ({
+    user,
+    name: String((u[user] && u[user].name) || user),
+  })).sort((a, b) => a.name.localeCompare(b.name) || a.user.localeCompare(b.user));
+}
+
 let lastBackup = 0;
+function backupStamp(name) {
+  const m = /^(?:shelf|shelves)-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})/.exec(name);
+  return m ? m[1] : name;
+}
 async function backup() {
   if (Date.now() - lastBackup < 60 * 60 * 1000) return;
   lastBackup = Date.now();
   await fsp.mkdir(BACKUP_DIR, { recursive: true, mode: 0o700 });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  await writeJsonAtomic(path.join(BACKUP_DIR, 'shelf-' + stamp + '.json'), shelf);
-  const all = (await fsp.readdir(BACKUP_DIR)).filter((f) => /^shelf-.*\.json$/.test(f)).sort();
+  if (!migrated && legacy) {
+    await writeJsonAtomic(path.join(BACKUP_DIR, 'shelf-' + stamp + '.json'), legacy);
+  } else {
+    const snap = {};
+    for (const user of Object.keys(users())) {
+      if (!USERNAME_RE.test(user)) continue;
+      try {
+        if (shelves.has(user)) snap[user] = shelves.get(user);
+        else {
+          const raw = readJson(shelfFile(user), null);
+          if (raw) snap[user] = toShelf(raw);
+        }
+      } catch (e) { log('backup skipped', user, e.message); }
+    }
+    await writeJsonAtomic(path.join(BACKUP_DIR, 'shelves-' + stamp + '.json'), { shelves: snap });
+  }
+  const all = (await fsp.readdir(BACKUP_DIR)).filter((f) => /^(shelf|shelves)-.*\.json$/.test(f));
+  all.sort((a, b) => backupStamp(a).localeCompare(backupStamp(b)) || a.localeCompare(b));
   for (const f of all.slice(0, Math.max(0, all.length - 72))) await fsp.unlink(path.join(BACKUP_DIR, f)).catch(() => {});
 }
 let writeChain = Promise.resolve();
@@ -372,10 +490,12 @@ function invitePage(req, res, status, token, row, msg) {
 function shelfPage(req, res, s) {
   const who = users()[s.user] || {};
   const look = lookOf(who);
-  const srv = { rev: shelf.rev, csrf: maskCsrf(s.csrf), user: s.user, name: who.name || s.user, role: roleOf(who), ...look };
+  const mine = shelfOf(s.user);
+  if (!mine) return redirect(req, res, '/login');
+  const srv = { rev: mine.rev, csrf: maskCsrf(s.csrf), user: s.user, name: who.name || s.user, role: roleOf(who), ...look, shelves: listShelves() };
   const themeAttr = look.theme === 'light' || look.theme === 'dark' ? ' data-theme="' + look.theme + '"' : '';
   const open = '<html lang="en"' + themeAttr + ' data-display="' + look.displayFont + '" data-body="' + look.bodyFont + '">';
-  const parts = { __SERVER__: jsonTag(srv), __DATA__: jsonTag(shelf.state) };
+  const parts = { __SERVER__: jsonTag(srv), __DATA__: jsonTag(mine.state) };
   const html = INDEX.replace('<html lang="en">', open).replace(/__SERVER__|__DATA__/g, (k) => parts[k]);
   return send(req, res, 200, html, 'text/html; charset=utf-8');
 }
@@ -439,8 +559,10 @@ async function handle(req, res) {
       let hash;
       try { hash = await hashPassword(pw); } finally { hashing--; }
       if (!needsSetup()) return false;
+      await claimLegacy(name);
       await writeJsonAtomic(USERS_FILE, { users: { [name]: { hash, name: display, role: 'admin', changed: Date.now() } } });
       invalidateUsers();
+      await finishClaim(name);
       return true;
     });
     if (!created) return redirect(req, res, '/login');
@@ -738,9 +860,32 @@ async function handle(req, res) {
     return redirect(req, res, '/', { 'Set-Cookie': sessionCookies(req, tok, accepted) });
   }
 
+  if (p === '/api/shelves' || p.startsWith('/api/shelves/')) {
+    if (!s) return json(req, res, 401, { error: 'signed_out' });
+    if (m !== 'GET' && m !== 'HEAD') return json(req, res, 405, { error: 'method' }, { Allow: 'GET, HEAD' });
+    if (p === '/api/shelves') return json(req, res, 200, { shelves: listShelves() });
+    let who = '';
+    try { who = decodeURIComponent(p.slice('/api/shelves/'.length)).toLowerCase(); }
+    catch (e) { return json(req, res, 404, { error: 'missing' }); }
+    if (!USERNAME_RE.test(who) || p.toLowerCase() !== '/api/shelves/' + who) return json(req, res, 404, { error: 'missing' });
+    const record = users()[who];
+    if (!record) return json(req, res, 404, { error: 'missing' });
+    let theirs;
+    try { theirs = shelfOf(who); }
+    catch (e) { return json(req, res, 500, { error: 'unreadable' }); }
+    if (!theirs) return json(req, res, 404, { error: 'missing' });
+    return json(req, res, 200, { rev: theirs.rev, state: theirs.state, user: who, name: record.name || who });
+  }
+
   if (p === '/api/state') {
     if (!s) return json(req, res, 401, { error: 'signed_out' });
-    if (m === 'GET') return json(req, res, 200, shelf);
+    if (m === 'GET' || m === 'HEAD') {
+      let mine;
+      try { mine = shelfOf(s.user); }
+      catch (e) { return json(req, res, 500, { error: 'unreadable' }); }
+      if (!mine) return json(req, res, 401, { error: 'signed_out' });
+      return json(req, res, 200, mine);
+    }
     if (m !== 'PUT') return json(req, res, 405, { error: 'method' }, { Allow: 'GET, PUT' });
     if (!sameOrigin(req) || !csrfOk(req, s)) return json(req, res, 403, { error: 'forbidden' });
     if (!/^application\/json\b/.test(String(req.headers['content-type'] || ''))) return json(req, res, 415, { error: 'json_only' });
@@ -750,15 +895,18 @@ async function handle(req, res) {
     if (!body || !Number.isInteger(body.baseRev)) return json(req, res, 400, { error: 'bad_request' });
     let next;
     try { next = cap(normalize(precheck(body.state))); } catch (e) { return json(req, res, 422, { error: 'invalid', detail: String(e.message).slice(0, 200) }); }
-    // One save at a time; a save based on an old copy is refused instead of overwriting newer changes.
+    // One save at a time, and only onto the signed-in account. A save based on an old copy is refused.
+    const user = s.user;
     const result = writeChain.then(async () => {
+      const shelf = shelfOf(user);
+      if (!shelf) return { status: 401, body: { error: 'signed_out' } };
       if (body.baseRev !== shelf.rev) return { status: 409, body: { error: 'conflict', rev: shelf.rev } };
       next.updatedAt = Date.now();
       await backup().catch((e) => log('backup failed', e.message));
-      const saved = { rev: shelf.rev + 1, state: next, savedBy: s.user, savedAt: new Date().toISOString() };
-      await writeJsonAtomic(SHELF_FILE, saved);
-      shelf = saved;
-      return { status: 200, body: { rev: shelf.rev } };
+      const saved = { rev: shelf.rev + 1, state: next, savedBy: user, savedAt: new Date().toISOString() };
+      await writeJsonAtomic(shelfFile(user), saved);
+      shelves.set(user, saved);
+      return { status: 200, body: { rev: saved.rev } };
     });
     writeChain = result.catch(() => {});
     const r = await result;
