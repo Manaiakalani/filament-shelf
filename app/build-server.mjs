@@ -30,12 +30,15 @@ for (const f of cssRes.outputFiles) {
 const jsName = 'app-' + hash(js) + '.js', cssName = 'app-' + hash(css) + '.css';
 fs.writeFileSync(path.join(assets, jsName), js);
 fs.writeFileSync(path.join(assets, cssName), css);
+const paper = fs.readFileSync('src/paper.css');
+const paperName = 'paper-' + hash(paper) + '.css';
+fs.writeFileSync(path.join(assets, paperName), paper);
 const icon = fs.readFileSync('icon.png');
 const iconName = 'icon-' + hash(icon) + '.png';
 fs.writeFileSync(path.join(assets, iconName), icon);
 
 const catalog = JSON.stringify(JSON.parse(fs.readFileSync('src/catalog.json', 'utf8'))).replace(/</g, '\\u003c');
-let html = fs.readFileSync('template-server.html', 'utf8').replace('__JS__', jsName).replace('__CSS__', cssName).replaceAll('__ICON__', iconName).replace('__CATALOG__', () => catalog);
+let html = fs.readFileSync('template-server.html', 'utf8').replace('__JS__', jsName).replace('__CSS__', cssName).replace('__PAPER__', paperName).replaceAll('__ICON__', iconName).replace('__CATALOG__', () => catalog);
 fs.writeFileSync(path.join(out, 'index.html'), html);
 fs.copyFileSync('src/seed.json', path.join(out, 'seed.json'));
 fs.writeFileSync(path.join(out, 'manifest.webmanifest'), JSON.stringify({
@@ -49,4 +52,4 @@ fs.writeFileSync(path.join(out, 'manifest.webmanifest'), JSON.stringify({
 
 await build({ entryPoints: ['src/validate-entry.mjs'], bundle: true, platform: 'node', format: 'esm', outfile: path.join(out, 'validate.mjs'), legalComments: 'none' });
 const size = (p) => (fs.statSync(p).size / 1024).toFixed(0) + ' KB';
-console.log('dist-server ready:', jsName, size(path.join(assets, jsName)), cssName, size(path.join(assets, cssName)), fs.readdirSync(assets).length, 'asset files');
+console.log('dist-server ready:', jsName, size(path.join(assets, jsName)), cssName, size(path.join(assets, cssName)), paperName, size(path.join(assets, paperName)), fs.readdirSync(assets).length, 'asset files');

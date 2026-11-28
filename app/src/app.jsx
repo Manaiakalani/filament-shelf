@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell } from 'recharts';
 import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, fetchShelf, fetchShelves, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, countIsLow, changePassword, signOutOthers, mergeSpools, restockText, withShop, applyLook, rememberLook, apiJson } from './store.js';
 import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish, materialTone } from './color.js';
 import { activeNames, brandsInUse, sameBrand } from './filters.js';
-import { insightsSheetHtml } from './insights-print.js';
+import { insightsSheetHtml, RAINBOW_BANDS } from './insights-print.js';
 
 const MATERIALS = ['PLA', 'PLA+', 'Matte PLA', 'Silk PLA', 'PLA-CF', 'PETG', 'PETG-CF', 'TPU', 'ABS', 'ASA', 'Nylon', 'PC', 'PVB'];
 const OTHER = { light: '#8b90a0', dark: '#6f7586' };
@@ -91,7 +91,7 @@ const FLECKS = [
 ];
 // Saturated and evenly spaced. A diagonal blend on the ring collapses into two muddy tones.
 const RAINBOW_COLORS = ['#ff3b30', '#ff9f0a', '#ffd60a', '#30d158', '#32ade6', '#3b6cff', '#bf5af2'];
-const RAINBOW_CONIC = 'conic-gradient(#ff3b30,#ff9f0a 16%,#ffd60a 30%,#30d158 46%,#32ade6 62%,#3b6cff 76%,#bf5af2 88%,#ff3b30)';
+
 
 function rainbowBands(R) {
   const inner = 20.2;
@@ -506,25 +506,75 @@ function labelText(s) {
   const left = s.remaining == null ? '' : s.remaining + ' g left';
   return [s.colorName, [s.brand, s.material].filter(Boolean).join(' · '), s.location || '', isRainbow(s.hex) ? '' : s.hex, left].filter(Boolean).join('\n');
 }
-function printLabel(s) {
-  const w = window.open('', '_blank', 'noopener,width=480,height=360');
+function paperEsc(x) {
+  return String(x == null ? '' : x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+// The printed window is a real tab. noopener makes open() return nothing and leaves that tab blank.
+// A style block in the tab is also blocked, so colors are painted from this page and the layout
+// comes from the same-origin paper stylesheet named in the page head.
+function paperCssHref() {
+  const m = document.querySelector('meta[name="paper-css"]');
+  const content = m && m.getAttribute('content');
+  if (!content) return '';
+  try { return new URL(content, location.origin).href; }
+  catch (e) { return ''; }
+}
+function paintPaper(doc) {
+  doc.querySelectorAll('[data-bg]').forEach((el) => {
+    const bg = el.getAttribute('data-bg') || '';
+    if (/^#[0-9A-Fa-f]{6}$/.test(bg)) el.style.background = bg;
+  });
+  doc.querySelectorAll('[data-grow]').forEach((el) => {
+    const n = Number(el.getAttribute('data-grow'));
+    if (Number.isFinite(n) && n >= 0) el.style.flexGrow = String(n);
+  });
+  doc.querySelectorAll('[data-w]').forEach((el) => {
+    const n = Number(el.getAttribute('data-w'));
+    if (Number.isFinite(n) && n >= 0) el.style.width = n + '%';
+  });
+}
+function openPaper(html, features) {
+  const w = window.open('', '_blank', features || 'width=840,height=1100');
   if (!w) return false;
-  const e = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  try {
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    paintPaper(w.document);
+  } catch (e) {
+    try { w.close(); } catch (x) {}
+    return false;
+  }
+  const show = () => {
+    try { paintPaper(w.document); } catch (e) {}
+    try { w.focus(); } catch (e) {}
+    try { w.print(); } catch (e) {}
+  };
+  let link = null;
+  try { link = w.document.querySelector('link[rel="stylesheet"]'); } catch (e) { link = null; }
+  if (link && !link.sheet) {
+    link.addEventListener('load', show, { once: true });
+    link.addEventListener('error', show, { once: true });
+  } else show();
+  try { w.opener = null; } catch (e) {}
+  return true;
+}
+function printLabel(s) {
+  const e = paperEsc;
   const left = s.remaining == null ? '' : '<p>' + e(s.remaining) + ' g left</p>';
   const where = s.location ? '<p>' + e(s.location) + '</p>' : '';
   const dot = isRainbow(s.hex)
-    ? 'background:' + RAINBOW_CONIC
-    : 'background:' + e(s.hex);
-  w.document.write('<!DOCTYPE html><html><head><title>' + e(s.colorName) + '</title><style>body{font-family:"Iowan Old Style",Georgia,serif;margin:32px;color:#1c1e26} .dot{width:84px;height:84px;border-radius:50%;border:10px solid #eceff4} h1{font-size:28px;margin:12px 0 4px} p{margin:2px 0;color:#4c5160;font-family:system-ui,sans-serif}</style></head><body><div class="dot" style="' + dot + '"></div><h1>' + e(s.colorName) + '</h1><p>' + e(s.brand) + ' · ' + e(s.material) + '</p>' + where + left + '<script>addEventListener("load",function(){print()})<\/script></body></html>');
-  w.document.close();
-  return true;
+    ? '<div class="p-dot p-rain">' + RAINBOW_BANDS.map((h) => '<b data-bg="' + h + '"></b>').join('') + '</div>'
+    : '<div class="p-dot" data-bg="' + e(validHex(s.hex) ? s.hex : '#888888') + '"></div>';
+  const href = paperCssHref();
+  const link = href ? '<link rel="stylesheet" href="' + e(href) + '">' : '';
+  const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + e(s.colorName) + '</title>' + link
+    + '</head><body><div class="p-label">' + dot + '<h1>' + e(s.colorName)
+    + '</h1><p>' + e(s.brand) + ' · ' + e(s.material) + '</p>' + where + left + '</div></body></html>';
+  return openPaper(html, 'width=480,height=640');
 }
 function printInsights(opts) {
-  const w = window.open('', '_blank', 'noopener,width=840,height=1000');
-  if (!w) return false;
-  w.document.write(insightsSheetHtml(opts));
-  w.document.close();
-  return true;
+  return openPaper(insightsSheetHtml({ ...opts, cssHref: paperCssHref() }));
 }
 
 function SpoolForm({ spool, seed, brands, locations, others = [], onSave, onDelete, onDuplicate, onCombine, onAddBrand, toast }) {
