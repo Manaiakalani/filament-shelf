@@ -139,6 +139,31 @@ export async function fetchLatest() {
   if (!r.ok) return null;
   try { const j = await r.json(); return Number.isInteger(j.rev) ? { rev: j.rev, state: normalize(j.state) } : null; } catch (e) { return null; }
 }
+// Another person's shelf. The revision stays here: it must not replace the signed-in account's rev.
+export async function fetchShelf(user) {
+  const srv = server(); if (!srv || !user) return null;
+  let r;
+  try { r = await fetch('/api/shelves/' + encodeURIComponent(user), { credentials: 'same-origin', cache: 'no-store', redirect: 'manual' }); } catch (e) { return null; }
+  if (r.type === 'opaqueredirect' || r.status === 401) return { signedOut: true };
+  if (r.status === 404) return { missing: true };
+  if (!r.ok) return null;
+  try {
+    const j = await r.json();
+    return Number.isInteger(j.rev) ? { rev: j.rev, state: normalize(j.state), user: j.user, name: j.name || user } : null;
+  } catch (e) { return null; }
+}
+export async function fetchShelves() {
+  const srv = server(); if (!srv) return null;
+  let r;
+  try { r = await fetch('/api/shelves', { credentials: 'same-origin', cache: 'no-store', redirect: 'manual' }); } catch (e) { return null; }
+  if (r.type === 'opaqueredirect' || r.status === 401) return { signedOut: true };
+  if (!r.ok) return null;
+  try {
+    const j = await r.json();
+    if (!Array.isArray(j.shelves)) return null;
+    return j.shelves.filter((s) => s && typeof s.user === 'string').map((s) => ({ user: s.user, name: typeof s.name === 'string' && s.name ? s.name : s.user }));
+  } catch (e) { return null; }
+}
 export function adoptRev(rev) { if (server() && Number.isInteger(rev)) server().rev = rev; }
 export function dropPending() { try { sessionStorage.removeItem(pendKey()); } catch (e) {} }
 export async function signOut() {

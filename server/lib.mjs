@@ -9,6 +9,8 @@ export const USERS_FILE = path.join(DATA_DIR, 'users.json');
 export const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 export const INVITES_FILE = path.join(DATA_DIR, 'invites.json');
 export const SHELF_FILE = path.join(DATA_DIR, 'shelf.json');
+export const SHELVES_DIR = path.join(DATA_DIR, 'shelves');
+export const SHELVES_META = path.join(DATA_DIR, 'shelves.json');
 export const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 
 export const THEMES = ['system', 'light', 'dark'];
@@ -85,3 +87,13 @@ export function cleanDisplayName(value) {
 
 export const USERNAME_RE = /^[a-z0-9._-]{1,32}$/;
 export const MIN_PASSWORD = 8;
+
+// One shelf file per account. The name is allowlisted, then the resolved path has to stay in shelves/.
+export function shelfFile(user) {
+  const name = String(user || '').trim().toLowerCase();
+  if (!USERNAME_RE.test(name)) throw new Error('bad username');
+  const root = path.resolve(SHELVES_DIR);
+  const file = path.resolve(root, name + '.json');
+  if (path.dirname(file) !== root) throw new Error('bad username');
+  return file;
+}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { PieChart, Pie, Cell } from 'recharts';
-import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, countIsLow, changePassword, signOutOthers, mergeSpools, restockText, withShop, applyLook, rememberLook, apiJson } from './store.js';
+import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, fetchShelf, fetchShelves, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, countIsLow, changePassword, signOutOthers, mergeSpools, restockText, withShop, applyLook, rememberLook, apiJson } from './store.js';
 import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish, materialTone } from './color.js';
 import { activeNames, brandsInUse, sameBrand } from './filters.js';
 
@@ -1034,15 +1034,17 @@ function ShopNote({ brand, shop, onSave }) {
   const [url, setUrl] = useState(shop ? shop.url : '');
   const save = (e) => {
     e.preventDefault();
+    if (!onSave) return;
     onSave(brand, note, url);
     setOpen(false);
   };
+  if (!onSave && !(shop && (shop.url || shop.note))) return null;
   return (
     <div className="shop-note">
       {shop && shop.url ? <a href={shop.url} target="_blank" rel="noopener noreferrer">{shop.note || shop.url}</a> : shop && shop.note ? <p>{shop.note}</p> : null}
-      <button type="button" className="link-btn" onClick={() => { setNote(shop ? shop.note : ''); setUrl(shop ? shop.url : ''); setOpen(!open); }} aria-expanded={open}>
+      {onSave && <button type="button" className="link-btn" onClick={() => { setNote(shop ? shop.note : ''); setUrl(shop ? shop.url : ''); setOpen(!open); }} aria-expanded={open}>
         {open ? 'Close note' : shop ? 'Edit reorder note' : 'Add a reorder note'}
-      </button>
+      </button>}
       {open && (
         <form onSubmit={save}>
           <label className="field">
@@ -1060,7 +1062,7 @@ function ShopNote({ brand, shop, onSave }) {
   );
 }
 
-function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onToggleBrand, onClearBrands, onSaveShop }) {
+function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onToggleBrand, onClearBrands, onSaveShop, lookOnly }) {
   const brandsOnSafe = brandsOn || [];
   const all = state.spools;
   const spools = brandsOnSafe.length ? all.filter((s) => brandsOnSafe.some((b) => sameBrand(s.brand, b))) : all;
@@ -1069,8 +1071,8 @@ function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onTo
       <div className="empty">
         <Spool hex="#888888" count={0} size={120} />
         <h2>Nothing to chart yet</h2>
-        <p>Add a spool and your color wheel starts filling in.</p>
-        <button className="btn primary" onClick={onAdd}>Add a spool</button>
+        <p>{lookOnly ? 'Nothing is on this shelf yet.' : 'Add a spool and your color wheel starts filling in.'}</p>
+        {!lookOnly && <button className="btn primary" onClick={onAdd}>Add a spool</button>}
       </div>
     );
   }
@@ -1155,7 +1157,7 @@ function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onTo
                               <Spool hex={s.hex} count={s.count} material={s.material} colorName={s.colorName} size={44} remaining={s.remaining} weight={s.weight} />
                               <div><strong>{s.colorName}</strong><span className="badge mat" style={matStyle(s.material)}>{s.material}</span></div>
                               {s.count === 0 ? <span className="badge out">{I.warn}Out</span> : gramsHit ? <span className="badge low">{s.remaining} g</span> : <span className="badge low">{s.count === 1 ? 'Last spool' : s.count + ' left'}</span>}
-                              <button className="mini-plus" onClick={() => onBump(s.id, 1)} aria-label={'Add a spool of ' + s.colorName}>{I.plus}</button>
+                              {onBump && <button className="mini-plus" onClick={() => onBump(s.id, 1)} aria-label={'Add a spool of ' + s.colorName}>{I.plus}</button>}
                             </li>
                           );
                         })}
@@ -1174,19 +1176,26 @@ function Insights({ state, dark, onAdd, onBump, onRestock, toast, brandsOn, onTo
 }
 
 /* ---------- shelf ---------- */
-function Cell_({ s, onEdit, onBump, intro, i, settings }) {
+function Cell_({ s, onEdit, onBump, intro, i, settings, lookOnly }) {
   const lowAt = settings && Number.isFinite(settings.lowAt) ? settings.lowAt : 1;
   const lowGrams = settings && Number.isFinite(settings.lowGrams) ? settings.lowGrams : 200;
   const out = s.count === 0;
   const gramsLow = !out && lowGrams > 0 && s.remaining != null && s.remaining <= lowGrams;
   const low = !out && !gramsLow && countIsLow(s.count, lowAt);
+  const open = lookOnly ? null : () => onEdit(s);
   return (
-    <article className={'cell' + (out ? ' out' : '')}>
-      <button className={'cell-top' + (intro ? ' roll' : '')} style={intro ? { animationDelay: Math.min(i, 12) * 45 + 'ms' } : null} onClick={() => onEdit(s)} aria-label={'Edit ' + s.colorName}>
-        <Spool hex={s.hex} count={s.count} material={s.material} colorName={s.colorName} size={118} remaining={s.remaining} weight={s.weight} />
-      </button>
+    <article className={'cell' + (out ? ' out' : '') + (lookOnly ? ' is-quiet' : '')}>
+      {lookOnly ? (
+        <div className="cell-top" aria-label={s.colorName}>
+          <Spool hex={s.hex} count={s.count} material={s.material} colorName={s.colorName} size={118} remaining={s.remaining} weight={s.weight} />
+        </div>
+      ) : (
+        <button className={'cell-top' + (intro ? ' roll' : '')} style={intro ? { animationDelay: Math.min(i, 12) * 45 + 'ms' } : null} onClick={open} aria-label={'Edit ' + s.colorName}>
+          <Spool hex={s.hex} count={s.count} material={s.material} colorName={s.colorName} size={118} remaining={s.remaining} weight={s.weight} />
+        </button>
+      )}
       <div className="plank" aria-hidden="true" />
-      <div className="cell-info" onClick={() => onEdit(s)}>
+      <div className="cell-info" onClick={open || undefined}>
         <h3>{s.colorName}</h3>
         <p className="brand">{s.brand}</p>
         <p className="tags">
@@ -1200,9 +1209,9 @@ function Cell_({ s, onEdit, onBump, intro, i, settings }) {
         {s.notes && <p className="notes">{s.notes}</p>}
       </div>
       <div className="stepper" role="group" aria-label={'Spools of ' + s.colorName}>
-        <button onClick={() => onBump(s.id, -1)} disabled={out} aria-label="One fewer">{I.minus}</button>
+        <button type="button" onClick={() => { if (!lookOnly) onBump(s.id, -1); }} disabled={!lookOnly && out} aria-disabled={lookOnly || undefined} aria-label="One fewer">{I.minus}</button>
         <output key={s.count} aria-live="polite">{s.count}</output>
-        <button onClick={() => onBump(s.id, 1)} aria-label="One more">{I.plus}</button>
+        <button type="button" onClick={() => { if (!lookOnly) onBump(s.id, 1); }} aria-disabled={lookOnly || undefined} aria-label="One more">{I.plus}</button>
       </div>
     </article>
   );
@@ -1451,6 +1460,14 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [intro] = useState(() => { const seen = ss.get('fs-seen', false); ss.set('fs-seen', true); return !seen; });
   const who = server();
+  const [shelves, setShelves] = useState(() => (who && Array.isArray(who.shelves) ? who.shelves : []));
+  const [owner, setOwner] = useState(() => (who ? who.user : ''));
+  const ownerRef = useRef(who ? who.user : '');
+  const lookOnlyRef = useRef(false);
+  const viewRev = useRef(who ? who.rev : 0);
+  const lookOnly = !!(who && owner && owner !== who.user);
+  ownerRef.current = owner;
+  lookOnlyRef.current = lookOnly;
   const [look, setLook] = useState(() => ({
     theme: who && who.theme || 'system',
     displayFont: who && who.displayFont || 'bricolage',
@@ -1504,7 +1521,10 @@ export default function App() {
   };
 
   // Every user action goes through commit: stamp, save on this device now, publish later.
+  // Looking at someone else's shelf does not write, including into this account's pending save.
   const commit = useCallback((fn) => {
+    const mine = server();
+    if (mine && ownerRef.current && ownerRef.current !== mine.user) return;
     setState((prev) => {
       const next = { ...fn(prev), version: 1, updatedAt: Date.now() };
       if (!next.settings) next.settings = { lowAt: 1, lowGrams: 200 };
@@ -1517,7 +1537,7 @@ export default function App() {
   // Debounced publish. Waits while a sheet is open so the reload never interrupts typing.
   const busy = !!sheet || !!confirm;
   useEffect(() => {
-    if (!dirty || busy || mode === 'conflict' || mode === 'rejected' || mode === 'signedout') return;
+    if (!dirty || busy || lookOnly || mode === 'conflict' || mode === 'rejected' || mode === 'signedout') return;
     const t = setTimeout(async () => {
       if (publishing.current) return;
       publishing.current = true; setSaving(true);
@@ -1537,14 +1557,40 @@ export default function App() {
       if (stateRef.current === snapshot) setDirty(0); else setDirty((d) => d + 1);
     }, 1500);
     return () => clearTimeout(t);
-  }, [dirty, busy, mode]);
+  }, [dirty, busy, mode, lookOnly]);
+
+  useEffect(() => {
+    if (!server()) return;
+    let on = true;
+    fetchShelves().then((list) => {
+      if (!on || !list) return;
+      if (list.signedOut) { setMode('signedout'); return; }
+      if (Array.isArray(list)) setShelves(list);
+    });
+    return () => { on = false; };
+  }, []);
 
   // Self-hosted: pick up changes from other devices when the app comes back to the foreground,
-  // and warn before closing with an unsaved change.
+  // and warn before closing with an unsaved change. A shelf you are only looking at refreshes on its own.
   useEffect(() => {
     if (!server()) return;
     const refresh = async () => {
-      if (document.visibilityState !== 'visible' || dirty || saving || mode === 'conflict') return;
+      if (document.visibilityState !== 'visible') return;
+      const list = await fetchShelves();
+      if (list && list.signedOut) { setMode('signedout'); return; }
+      if (Array.isArray(list)) setShelves(list);
+      const mine = server();
+      if (!mine) return;
+      if (ownerRef.current && ownerRef.current !== mine.user) {
+        const r = await fetchShelf(ownerRef.current);
+        if (!r) return;
+        if (r.signedOut) { setMode('signedout'); return; }
+        if (r.missing || r.rev === viewRev.current) return;
+        viewRev.current = r.rev;
+        setState(r.state);
+        return;
+      }
+      if (dirty || saving || mode === 'conflict') return;
       const r = await fetchLatest();
       if (!r) return;
       if (r.signedOut) { setMode('signedout'); return; }
@@ -1577,7 +1623,7 @@ export default function App() {
       const t = e.target;
       if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
       if (e.key === '/') { e.preventDefault(); setTab('shelf'); setTimeout(() => { if (searchRef.current) searchRef.current.focus(); }, 40); }
-      else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); setSheet({ type: 'edit', spool: null }); }
+      else if ((e.key === 'n' || e.key === 'N') && !lookOnlyRef.current) { e.preventDefault(); setSheet({ type: 'edit', spool: null }); }
       else if (e.key === '1') setTab('shelf');
       else if (e.key === '2') setTab('insights');
     };
@@ -1632,6 +1678,28 @@ export default function App() {
   const closeSheet = useCallback(() => { setSheet(null); setDraft(null); }, []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
   const clearFilters = () => { setQ(''); setFb([]); setFm([]); setFl([]); setFr(false); };
+  const shelfPeople = useMemo(() => {
+    const list = (shelves || []).filter((s) => s && typeof s.user === 'string');
+    if (!who) return list;
+    const self = list.filter((s) => s.user === who.user);
+    const rest = list.filter((s) => s.user !== who.user).sort((a, b) => String(a.name || a.user).localeCompare(String(b.name || b.user)) || a.user.localeCompare(b.user));
+    return self.concat(rest);
+  }, [shelves, who]);
+  const ownerName = (shelfPeople.find((s) => s.user === owner) || {}).name || (who && owner === who.user ? who.name : '') || owner;
+  const switchShelf = async (user) => {
+    if (!who || !user || user === ownerRef.current) return;
+    if (ownerRef.current === who.user && (dirty || saving || publishing.current)) { toast('Your shelf is still saving.'); return; }
+    const home = user === who.user;
+    const r = home ? await fetchLatest() : await fetchShelf(user);
+    if (r && r.signedOut) { setMode('signedout'); return; }
+    if (!r) { toast('That shelf could not be opened.'); return; }
+    if (r.missing) { toast('That shelf is not here.'); return; }
+    clearFilters();
+    window.scrollTo(0, 0);
+    if (home) { adoptRev(r.rev); setOwner(who.user); setDirty(0); setMode('cloud'); }
+    else { viewRev.current = r.rev; setOwner(user); }
+    setState(r.state);
+  };
 
   const saveSpool = (f) => {
     ss.set('fs-last-brand', f.brand); ss.set('fs-last-mat', f.material);
@@ -1679,7 +1747,7 @@ export default function App() {
   const setLowGrams = (v) => commit((s) => ({ ...s, settings: { ...s.settings, lowGrams: clamp(v, 0, 2000) } }));
   const goRestock = () => { clearFilters(); setFr(true); setTab('shelf'); window.scrollTo(0, 0); };
 
-  const status = mode === 'conflict' ? 'Changed on another device' : mode === 'signedout' ? 'Signed out, not saved' : mode === 'rejected' ? 'Couldn’t save that change' : mode === 'offline' && !saving ? 'Not saved yet, retrying' : saving || dirty ? 'Saving…' : mode === 'device' ? 'Saved on this device' : mode === 'viewonly' ? 'View only, saved on this device' : 'Saved';
+  const status = lookOnly ? ownerName + "'s shelf" : mode === 'conflict' ? 'Changed on another device' : mode === 'signedout' ? 'Signed out, not saved' : mode === 'rejected' ? 'Couldn’t save that change' : mode === 'offline' && !saving ? 'Not saved yet, retrying' : saving || dirty ? 'Saving…' : mode === 'device' ? 'Saved on this device' : mode === 'viewonly' ? 'View only, saved on this device' : 'Saved';
   const sortLabel = { count: 'Count ↓', countAsc: 'Count ↑' }[sort] || 'Count';
 
   return (
@@ -1722,6 +1790,13 @@ export default function App() {
                 : <span className={'status' + (saving || dirty ? ' busy' : '') + (mode === 'offline' ? ' warn' : '')} role="status"><i />{status}</span>}
             </div>
           </div>
+          {who && shelfPeople.length > 1 && (
+            <div className="who-row" role="tablist" aria-label="Whose shelf">
+              {shelfPeople.map((person) => (
+                <button key={person.user} type="button" role="tab" aria-selected={owner === person.user} className={owner === person.user ? 'on' : ''} onClick={() => switchShelf(person.user)}>{person.name || person.user}</button>
+              ))}
+            </div>
+          )}
           <dl className="stats">
             <div><dd>{stats.total}</dd><dt>spools</dt></div>
             <div><dd>{stats.colors}</dd><dt>colors</dt></div>
@@ -1730,9 +1805,15 @@ export default function App() {
           </dl>
         </header>
 
+        {lookOnly && (
+          <div className="banner">
+            <p>{ownerName}'s shelf. You can look. Only {ownerName} can change it.</p>
+          </div>
+        )}
+
         {tab === 'shelf' ? (
           <main className="view" key="shelf">
-            {hasSamples && !state.hideSampleNote && (
+            {hasSamples && !state.hideSampleNote && !lookOnly && (
               <div className="banner">
                 <p>These are example spools.</p>
                 <button className="link-btn" onClick={clearSamples}>Clear examples</button>
@@ -1742,9 +1823,9 @@ export default function App() {
             {state.spools.length === 0 ? (
               <div className="empty">
                 <Spool hex="#888888" count={0} size={132} />
-                <h2>Your shelf is empty</h2>
-                <p>Add the first spool you can see from where you are standing.</p>
-                <button className="btn primary" onClick={() => setSheet({ type: 'edit', spool: null })}>Add a spool</button>
+                <h2>{lookOnly ? ownerName + "'s shelf is empty" : 'Your shelf is empty'}</h2>
+                <p>{lookOnly ? 'Nothing has been added here yet.' : 'Add the first spool you can see from where you are standing.'}</p>
+                {!lookOnly && <button className="btn primary" onClick={() => setSheet({ type: 'edit', spool: null })}>Add a spool</button>}
               </div>
             ) : (
               <>
@@ -1812,8 +1893,8 @@ export default function App() {
                 ) : (
                   <>
                     {filtered && <p className="count-line">Showing {shown.length} of {plural(state.spools.length, 'color')}</p>}
-                    <div className="shelf">
-                      {shown.map((s, i) => <Cell_ key={s.id} s={s} i={i} intro={intro} settings={state.settings} onEdit={(sp) => setSheet({ type: 'edit', spool: sp })} onBump={bump} />)}
+                    <div className={'shelf' + (lookOnly ? ' is-quiet' : '')}>
+                      {shown.map((s, i) => <Cell_ key={s.id} s={s} i={i} intro={intro && !lookOnly} settings={state.settings} lookOnly={lookOnly} onEdit={(sp) => { if (!lookOnly) setSheet({ type: 'edit', spool: sp }); }} onBump={bump} />)}
                     </div>
                   </>
                 )}
@@ -1822,14 +1903,14 @@ export default function App() {
           </main>
         ) : (
           <main className="view" key="insights">
-            <Insights state={state} dark={dark} onAdd={() => setSheet({ type: 'edit', spool: null })} onBump={bump} onRestock={goRestock} toast={toast}
-              brandsOn={aFb} onToggleBrand={toggleBrand} onClearBrands={() => setFb([])} onSaveShop={saveShop} />
+            <Insights state={state} dark={dark} lookOnly={lookOnly} onAdd={() => { if (!lookOnly) setSheet({ type: 'edit', spool: null }); }} onBump={lookOnly ? null : bump} onRestock={goRestock} toast={toast}
+              brandsOn={aFb} onToggleBrand={toggleBrand} onClearBrands={() => setFb([])} onSaveShop={lookOnly ? null : saveShop} />
           </main>
         )}
 
         <nav className="dock" aria-label="Main">
           <button className={tab === 'shelf' ? 'on' : ''} aria-current={tab === 'shelf' ? 'page' : undefined} onClick={() => { setTab('shelf'); window.scrollTo(0, 0); }}>{I.shelf}<span>Shelf</span></button>
-          <button className="add" onClick={() => setSheet({ type: 'edit', spool: null })} aria-label="Add a spool" title="Add a spool (N)">{I.plus}</button>
+          <button className="add" type="button" disabled={lookOnly} onClick={() => { if (!lookOnly) setSheet({ type: 'edit', spool: null }); }} aria-label={lookOnly ? 'Only ' + ownerName + ' can add a spool' : 'Add a spool'} title={lookOnly ? 'Only ' + ownerName + ' can add a spool' : 'Add a spool (N)'}>{I.plus}</button>
           <button className={tab === 'insights' ? 'on' : ''} aria-current={tab === 'insights' ? 'page' : undefined} onClick={() => { setTab('insights'); window.scrollTo(0, 0); }}>{I.chart}<span>Insights</span></button>
         </nav>
       </div>
@@ -1852,8 +1933,8 @@ export default function App() {
               </ul>
             </>
           )}
-          <h3 className="menu-group">Shelf</h3>
-          <ul className="menu">
+          {!lookOnly && <h3 className="menu-group">Shelf</h3>}
+          {!lookOnly && <ul className="menu">
             <MenuButton ico={I.tag} title="Manage brands" detail={'Rename, add or delete. ' + plural(state.brands.length, 'brand') + ' so far.'} onClick={() => setSheet({ type: 'brands' })} />
             <li className="menu-row">
               <span className="menu-ico warn">{I.warn}</span>
@@ -1873,11 +1954,11 @@ export default function App() {
                 <button type="button" onClick={() => setLowGrams(lowGrams + 50)} disabled={lowGrams >= 2000} aria-label="Raise the grams">{I.plus}</button>
               </div>
             </li>
-          </ul>
+          </ul>}
           <h3 className="menu-group">Backup</h3>
           <ul className="menu">
-            <MenuButton ico={I.upload} title="Export" detail="Copy or save a backup, or a spreadsheet." onClick={() => setSheet({ type: 'export' })} />
-            <MenuButton ico={I.download} title="Import" detail="Load a backup or spreadsheet from text or a file." onClick={() => setSheet({ type: 'import' })} />
+            <MenuButton ico={I.upload} title="Export" detail={lookOnly ? 'Copy a backup of ' + ownerName + "'s shelf." : 'Copy or save a backup, or a spreadsheet.'} onClick={() => setSheet({ type: 'export' })} />
+            {!lookOnly && <MenuButton ico={I.download} title="Import" detail="Load a backup or spreadsheet from text or a file." onClick={() => setSheet({ type: 'import' })} />}
           </ul>
           {server() && (
             <div className="menu-row signed">
@@ -1885,7 +1966,7 @@ export default function App() {
               <button className="btn ghost small" onClick={signOut}>Sign out</button>
             </div>
           )}
-          <p className="fine">{server() ? 'Changes save a moment after you stop tapping.' : mode === 'viewonly' ? 'You are viewing a shared copy. Changes stay on this device.' : mode === 'device' ? 'Changes are kept on this device. Export a backup now and then.' : 'Changes save a moment after you stop tapping.'}</p>
+          <p className="fine">{lookOnly ? 'You are looking at ' + ownerName + "'s shelf. Only " + ownerName + ' can change it.' : server() ? 'Changes save a moment after you stop tapping.' : mode === 'viewonly' ? 'You are viewing a shared copy. Changes stay on this device.' : mode === 'device' ? 'Changes are kept on this device. Export a backup now and then.' : 'Changes save a moment after you stop tapping.'}</p>
           <p className="fine">Color catalog from the <a href={CATALOG_SOURCE} target="_blank" rel="noopener noreferrer">Open Filament Database</a> (MIT license).</p>
           <p className="fine kbd-help">Shortcuts: <kbd className="kbd">/</kbd> search, <kbd className="kbd">N</kbd> new spool, <kbd className="kbd">1</kbd> <kbd className="kbd">2</kbd> switch tabs, <kbd className="kbd">Esc</kbd> close.</p>
         </Sheet>
