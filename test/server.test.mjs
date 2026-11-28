@@ -310,6 +310,28 @@ test('an admin can invite someone, and a member cannot manage people', async () 
     assert.match(html, /data-theme="dark"/);
     assert.match(html, /data-display="fraunces"/);
     assert.match(html, /data-body="nunito"/);
+    const round = await fetch(app.base + '/api/account/look', {
+      method: 'POST',
+      headers: jsonHeaders(memberCookie, member.csrf),
+      body: JSON.stringify({ theme: 'light', displayFont: 'quicksand', bodyFont: 'figtree' }),
+    });
+    assert.equal(round.status, 200);
+    const roundHtml = await (await fetch(app.base + '/', { headers: headers(app.base, memberCookie) })).text();
+    assert.match(roundHtml, /data-theme="light"/);
+    assert.match(roundHtml, /data-display="quicksand"/);
+    assert.match(roundHtml, /data-body="figtree"/);
+    const titleOnly = await fetch(app.base + '/api/account/look', {
+      method: 'POST',
+      headers: jsonHeaders(memberCookie, member.csrf),
+      body: JSON.stringify({ theme: 'dark', displayFont: 'fredoka', bodyFont: 'fredoka' }),
+    });
+    assert.equal(titleOnly.status, 400);
+    const outfit = await fetch(app.base + '/api/account/look', {
+      method: 'POST',
+      headers: jsonHeaders(memberCookie, member.csrf),
+      body: JSON.stringify({ theme: 'system', displayFont: 'outfit', bodyFont: 'outfit' }),
+    });
+    assert.equal(outfit.status, 200);
 
     const duplicate = await fetch(app.base + '/api/people', {
       method: 'POST',

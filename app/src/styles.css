@@ -80,6 +80,11 @@ h1{font:800 clamp(44px,13.6vw,64px)/.86 var(--display);letter-spacing:-.045em;fo
 .icon-btn.tiny{width:44px;height:44px;color:var(--ink-2)}
 .icon-btn.tiny svg{width:16px;height:16px}
 .icon-btn:active{transform:scale(.94)}
+.theme-toggle{display:inline-flex;margin-top:14px;background:var(--surface);border-radius:999px;padding:3px;box-shadow:var(--shadow)}
+.theme-toggle button{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink-3)}
+.theme-toggle button.on{background:var(--sunk);color:var(--ink)}
+.theme-toggle button svg{width:18px;height:18px}
+.theme-toggle button:disabled{opacity:.55}
 
 /* banner */
 .view{animation:fade .28s ease both}
@@ -299,13 +304,22 @@ html[data-theme="dark"] .chip.mat.on{background:var(--mat-bright);color:#14161c;
 .hexfield input{border:0;outline:0;background:none;flex:1;min-width:0;font:600 17px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.04em;height:100%}
 
 /* menu, brands */
+.menu-group{margin:22px 0 2px;font:650 15px/1.2 var(--body);color:var(--ink-2)}
+.menu-group:first-child{margin-top:2px}
 .menu li+li{border-top:1px solid var(--line)}
-.menu-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;min-height:72px}
-.menu-row>div:first-child{flex:1;min-width:0}
+.menu-row{display:flex;align-items:center;gap:12px;padding:12px 0;min-height:72px}
+.menu-row>div{flex:1;min-width:0}
 .menu-row .stepper.in-form{width:148px;flex:none;height:52px}
 .menu-row strong{display:block;font-weight:650;font-size:16.5px;color:var(--ink)}
 .menu-row small{display:block;font-size:13.5px;color:var(--ink-2);margin-top:1px}
-.menu>li>button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;padding:15px 0;min-height:64px;color:var(--ink-3)}
+.menu>li>button{width:100%;display:flex;align-items:center;justify-content:flex-start;gap:12px;text-align:left;padding:12px 0;min-height:64px;color:var(--ink-3)}
+.menu>li>button>div{flex:1;min-width:0}
+.menu-ico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:none}
+.menu-ico svg{width:18px;height:18px}
+.menu-ico.accent{background:var(--accent-soft);color:var(--accent)}
+.menu-ico.warn{background:var(--warn-soft);color:var(--warn)}
+.menu-ico.low{background:var(--low-soft);color:var(--low)}
+.menu-ico.ink{background:var(--surface-2);color:var(--ink)}
 .menu strong,.brand-row strong,.restock strong{display:block;font-weight:650;font-size:16.5px;color:var(--ink)}
 .menu small,.brand-row small,.restock small{display:block;font-size:13.5px;color:var(--ink-2);margin-top:1px}
 .brands li{padding:9px 0;border-bottom:1px solid var(--line)}
@@ -313,6 +327,11 @@ html[data-theme="dark"] .chip.mat.on{background:var(--mat-bright);color:#14161c;
 .brand-row>div{flex:1;min-width:0}
 .add-brand{margin-top:18px}
 .choice{display:grid;gap:10px;margin-top:16px}
+.choice.pair{grid-template-columns:1fr 1fr;margin-top:8px}
+.choice.pair .choice-btn{min-width:0;padding:12px}
+.font-section{margin:22px 0 0;font:700 18px/1.15 var(--display);letter-spacing:-.02em;color:var(--ink)}
+.font-section:first-of-type{margin-top:16px}
+.font-group{margin:16px 0 0;font:650 15px/1.2 var(--body);color:var(--ink-2)}
 .choice-btn{text-align:left;padding:15px 16px;border-radius:16px;border:1.5px solid var(--line-2);display:grid;gap:3px}
 .choice-btn strong{font-size:16.5px}
 .choice-btn small{font-size:13.5px;color:var(--ink-2);line-height:1.35}
@@ -445,6 +464,8 @@ button.kpi:not(:disabled):active{transform:scale(.97)}
   .legend button:hover,.bar-name:hover:not(.on){background:var(--surface-2)}
   .bub:hover .bub-fill{stroke-width:2.2;stroke:var(--ink)}
   .choice-btn:hover{background:var(--surface-2)}
+  .choice-btn.on:hover{background:var(--accent-soft)}
+  .theme-toggle button:not(.on):hover{color:var(--ink)}
 }
 
 /* tablets and desktops: centered dialogs instead of bottom sheets */
@@ -515,4 +536,4 @@ button.kpi:not(:disabled):active{transform:scale(.97)}
 .status.warn i{background:var(--warn)}
 button.status{min-height:44px;display:inline-flex;align-items:center;gap:6px;font-weight:650}
 button.status svg{width:15px;height:15px}
-.menu-row.signed{border-top:1px solid var(--line);margin-top:6px}
+.menu-row.signed{border-top:1px solid var(--line);margin-top:16px}
