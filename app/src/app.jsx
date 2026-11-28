@@ -513,6 +513,7 @@ function SpoolForm({ spool, seed, brands, locations, others = [], onSave, onDele
   const [newBrand, setNewBrand] = useState(null);
   const [more, setMore] = useState(() => !!(f.location || f.price !== '' || f.weight !== '1000' || f.remaining !== ''));
   const autoName = useRef(isNew && !seed);
+  const colorNameRef = useRef(null);
   const [catOpen, setCatOpen] = useState(false);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const addBrand = () => {
@@ -561,6 +562,13 @@ function SpoolForm({ spool, seed, brands, locations, others = [], onSave, onDele
     if (p) p.then(() => toast('Copied a label. Allow pop-ups to print it.')).catch(() => toast('Allow pop-ups to print a label'));
     else toast('Allow pop-ups to print a label');
   };
+  const addAnother = () => {
+    if (!ok) return;
+    onSave(clean(), { stay: true });
+    autoName.current = true;
+    setF((p) => ({ ...p, colorName: '', hex: '#3A9FE0', count: 1, notes: '', remaining: '' }));
+    requestAnimationFrame(() => { const el = colorNameRef.current; if (el) { el.focus(); el.scrollIntoView({ block: 'center' }); } });
+  };
   return (
     <form className="form" onSubmit={(e) => { e.preventDefault(); if (ok) onSave(clean()); }}>
       {isNew && (
@@ -576,7 +584,7 @@ function SpoolForm({ spool, seed, brands, locations, others = [], onSave, onDele
         <div className="form-hero-text">
           <label className="field">
             <span>Color name</span>
-            <input value={f.colorName} maxLength={120} placeholder="Sky Blue" autoComplete="off" autoCapitalize="words" enterKeyHint="done"
+            <input ref={colorNameRef} value={f.colorName} maxLength={120} placeholder="Sky Blue" autoComplete="off" autoCapitalize="words" enterKeyHint="done"
               onChange={(e) => {
                 autoName.current = false;
                 const colorName = e.target.value;
@@ -686,11 +694,18 @@ function SpoolForm({ spool, seed, brands, locations, others = [], onSave, onDele
         <p className="fine">Another {f.colorName.trim()} uses a different color, so it stays its own row.</p>
       )}
 
-      <div className="form-actions">
-        {!isNew && <button type="button" className="btn ghost danger-text" onClick={onDelete}>Delete</button>}
-        {!isNew && <button type="button" className="btn ghost sq" onClick={() => onDuplicate(clean())} aria-label="Duplicate as a new spool" title="Duplicate">{I.dup}</button>}
-        <button className="btn primary grow" disabled={!ok}>{isNew ? 'Add to shelf' : 'Save changes'}</button>
-      </div>
+      {isNew ? (
+        <div className="form-actions stack">
+          <button type="button" className="btn ghost" disabled={!ok} onClick={addAnother}>Add and stay</button>
+          <button className="btn primary" disabled={!ok}>Add to shelf</button>
+        </div>
+      ) : (
+        <div className="form-actions">
+          <button type="button" className="btn ghost danger-text" onClick={onDelete}>Delete</button>
+          <button type="button" className="btn ghost sq" onClick={() => onDuplicate(clean())} aria-label="Duplicate as a new spool" title="Duplicate">{I.dup}</button>
+          <button className="btn primary grow" disabled={!ok}>Save changes</button>
+        </div>
+      )}
     </form>
   );
 }
@@ -1701,10 +1716,11 @@ export default function App() {
     setState(r.state);
   };
 
-  const saveSpool = (f) => {
+  const saveSpool = (f, opts) => {
     ss.set('fs-last-brand', f.brand); ss.set('fs-last-mat', f.material);
     if (f.id) { commit((s) => ({ ...s, spools: s.spools.map((x) => { if (x.id !== f.id) return x; const n = { ...f }; delete n.isSample; return n; }) })); toast('Saved changes'); }
-    else { commit((s) => ({ ...s, spools: [...s.spools, { ...f, id: uid() }] })); toast('Added to shelf'); }
+    else { commit((s) => ({ ...s, spools: [...s.spools, { ...f, id: uid() }] })); toast(opts && opts.stay ? 'Added ' + f.colorName : 'Added to shelf'); }
+    if (opts && opts.stay) return;
     setSheet(null);
   };
   const duplicate = (f) => {
