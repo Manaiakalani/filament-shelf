@@ -40,7 +40,7 @@ fs.writeFileSync(path.join(out, 'index.html'), html);
 fs.copyFileSync('src/seed.json', path.join(out, 'seed.json'));
 fs.writeFileSync(path.join(out, 'manifest.webmanifest'), JSON.stringify({
   name: 'Filament Shelf', short_name: 'Shelf', start_url: '/', scope: '/', display: 'standalone',
-  background_color: '#E8EBF1', theme_color: '#E8EBF1',
+  background_color: '#C9D0DB', theme_color: '#C9D0DB',
   icons: [
     { src: '/assets/' + iconName, sizes: '1024x1024', type: 'image/png', purpose: 'any' },
     { src: '/assets/' + iconName, sizes: '1024x1024', type: 'image/png', purpose: 'maskable' },
