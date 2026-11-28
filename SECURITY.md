@@ -10,4 +10,4 @@ The maintainer aims to acknowledge a report within 7 days, and to ship a fix or 
 
 The sign-in password, the session cookie, an optional setup key, and an optional Cloudflare tunnel are the controls in front of the shelf. `data/` is not encrypted. Keep that folder on a machine that uses disk encryption.
 
-Changing a password in the app signs every other device out and keeps the one you are using. The terminal `passwd` command signs that account out everywhere. A backup in `data/backups/` is the shelf itself, so treat a copied `data/` folder as private.
+Changing a password in the app signs every other device out and keeps the one you are using. The terminal `passwd` command signs that account out everywhere. An invite link works once, expires after 7 days, and the server stores a hash of the link rather than the link itself. Opening it sets that person's password and signs their other devices out. A backup in `data/backups/` is the shelf itself, so treat a copied `data/` folder as private.

@@ -7,8 +7,14 @@ import crypto from 'node:crypto';
 export const DATA_DIR = path.resolve(process.env.DATA_DIR || '/data');
 export const USERS_FILE = path.join(DATA_DIR, 'users.json');
 export const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+export const INVITES_FILE = path.join(DATA_DIR, 'invites.json');
 export const SHELF_FILE = path.join(DATA_DIR, 'shelf.json');
 export const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+
+export const THEMES = ['system', 'light', 'dark'];
+export const DISPLAY_FONTS = ['bricolage', 'fraunces', 'system'];
+export const BODY_FONTS = ['instrument', 'nunito', 'system'];
+export const INVITE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function readJson(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); }

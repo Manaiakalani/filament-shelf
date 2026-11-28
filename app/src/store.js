@@ -166,6 +166,44 @@ async function postAccount(path, body) {
 export function changePassword(current, next) { return postAccount('/api/account/password', { current, next }); }
 export function signOutOthers() { return postAccount('/api/account/sessions', { others: true }); }
 
+export function applyLook(look) {
+  if (typeof document === 'undefined' || !look) return;
+  const root = document.documentElement;
+  if (look.theme === 'light' || look.theme === 'dark') root.dataset.theme = look.theme;
+  else delete root.dataset.theme;
+  if (look.displayFont) root.dataset.display = look.displayFont;
+  if (look.bodyFont) root.dataset.body = look.bodyFont;
+  let dark = look.theme === 'dark';
+  if (look.theme !== 'light' && look.theme !== 'dark') {
+    try { dark = matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { dark = false; }
+  }
+  const color = dark ? '#11131A' : '#E8EBF1';
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', color));
+}
+export function rememberLook(look) {
+  const srv = server();
+  if (srv) Object.assign(srv, look);
+  applyLook(look);
+}
+export async function apiJson(path, method, body) {
+  const srv = server();
+  if (!srv) return { ok: false, error: 'local' };
+  let r;
+  try {
+    r = await fetch(path, {
+      method, credentials: 'same-origin', cache: 'no-store', redirect: 'manual',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': srv.csrf },
+      body: method === 'GET' || method === 'HEAD' || method === 'DELETE' ? undefined : JSON.stringify(body || {}),
+    });
+  } catch (e) { return { ok: false, error: 'error' }; }
+  if (r.type === 'opaqueredirect' || r.status === 401) return { ok: false, error: 'signedout' };
+  let data = {};
+  try { data = await r.json(); } catch (e) {}
+  if (!r.ok) return { ok: false, status: r.status, error: data.error || 'error' };
+  return { ok: true, ...data };
+}
+try { const bootLook = server(); if (bootLook) applyLook(bootLook); } catch (e) {}
+
 export function loadInitial() {
   let embedded = null, local = null;
   try { embedded = normalize(JSON.parse(document.getElementById(TAG_ID).textContent)); } catch (e) {}

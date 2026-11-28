@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { PieChart, Pie, Cell } from 'recharts';
-import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, countIsLow, changePassword, signOutOthers, mergeSpools, restockText, withShop } from './store.js';
+import { loadInitial, saveLocal, publish, waitForClaude, getDownloads, uid, parseBackup, toCsv, spoolKey, server, signOut, bootStatus, fetchLatest, adoptRev, dropPending, gramsOnHand, spoolValue, needsRestock, countIsLow, changePassword, signOutOthers, mergeSpools, restockText, withShop, applyLook, rememberLook, apiJson } from './store.js';
 import { hexToHsv, hsvToHex, hexToRgb, hueKey, luminance, validHex, clamp, isRainbow, RAINBOW_HEX, hexFromName, hexMatchesName, spoolFinish, materialTone } from './color.js';
 import { activeNames, brandsInUse, sameBrand } from './filters.js';
 
@@ -43,15 +43,17 @@ const ss = {
   get(k, d) { try { const v = sessionStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
-function useDark() {
-  const [dark, setDark] = useState(() => { try { return matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; } });
+function useDark(theme) {
+  const [systemDark, setSystemDark] = useState(() => { try { return matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; } });
   useEffect(() => {
     let mq; try { mq = matchMedia('(prefers-color-scheme: dark)'); } catch (e) { return; }
-    const f = (e) => setDark(e.matches);
+    const f = (e) => setSystemDark(e.matches);
     mq.addEventListener ? mq.addEventListener('change', f) : mq.addListener(f);
     return () => (mq.removeEventListener ? mq.removeEventListener('change', f) : mq.removeListener(f));
   }, []);
-  return dark;
+  if (theme === 'dark') return true;
+  if (theme === 'light') return false;
+  return systemDark;
 }
 
 const I = {
@@ -292,7 +294,7 @@ function Confirm({ c, onClose }) {
     <Sheet title={c.title} onClose={onClose} level={2}>
       <p className="lead">{c.body}</p>
       <div className="row-btns">
-        <button className="btn ghost" onClick={onClose}>Keep it</button>
+        <button className="btn ghost" onClick={onClose}>{c.cancel || 'Keep it'}</button>
         <button className={'btn ' + (c.danger ? 'danger' : 'primary')} onClick={() => { c.onConfirm(); onClose(); }}>{c.action}</button>
       </div>
     </Sheet>
@@ -1196,6 +1198,163 @@ function Cell_({ s, onEdit, onBump, intro, i, settings }) {
   );
 }
 
+/* ---------- appearance, fonts, people ---------- */
+const THEME_CHOICES = [
+  { id: 'system', name: 'Match this device', detail: 'Follows the light or dark setting on this phone.' },
+  { id: 'light', name: 'Light', detail: 'Paper background.' },
+  { id: 'dark', name: 'Dark', detail: 'Night background.' },
+];
+const DISPLAY_CHOICES = [
+  { id: 'bricolage', name: 'Bricolage Grotesque', css: '"Bricolage Grotesque Variable","Bricolage Grotesque",sans-serif' },
+  { id: 'fraunces', name: 'Fraunces', css: '"Fraunces Variable",Fraunces,Georgia,serif' },
+  { id: 'system', name: 'System', css: '"Avenir Next","Segoe UI",system-ui,sans-serif' },
+];
+const BODY_CHOICES = [
+  { id: 'instrument', name: 'Instrument Sans', css: '"Instrument Sans Variable","Instrument Sans",sans-serif' },
+  { id: 'nunito', name: 'Nunito', css: '"Nunito Variable",Nunito,sans-serif' },
+  { id: 'system', name: 'System', css: '"Avenir Next","Segoe UI",system-ui,sans-serif' },
+];
+const fontName = (list, id) => (list.find((f) => f.id === id) || list[0]).name;
+const PEOPLE_ERR = {
+  exists: 'That username is already on the shelf.',
+  bad_name: 'Use a name with letters and numbers, up to 40 characters.',
+  bad_username: 'Use 1–32 characters: letters, numbers, dot, dash, or underscore.',
+  last_admin: 'Keep at least one admin.',
+  self: 'Sign out instead of removing yourself.',
+  missing: 'That person is no longer here.',
+  forbidden: 'Only an admin can change people.',
+  signedout: 'Sign in again to continue.',
+};
+
+function AppearanceSheet({ look, onChange, onSave, busy }) {
+  return (
+    <form className="form" onSubmit={(e) => { e.preventDefault(); onSave(); }}>
+      <div className="look-preview" aria-hidden="true"><b>Filament Shelf</b><span>Sky Blue · 2 spools</span></div>
+      <div className="choice" role="group" aria-label="Appearance">
+        {THEME_CHOICES.map((t) => (
+          <button type="button" key={t.id} className={'choice-btn' + (look.theme === t.id ? ' on' : '')} aria-pressed={look.theme === t.id} onClick={() => onChange({ ...look, theme: t.id })}>
+            <strong>{t.name}</strong><small>{t.detail}</small>
+          </button>
+        ))}
+      </div>
+      <div className="form-actions"><button className="btn primary grow" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button></div>
+    </form>
+  );
+}
+function FontsSheet({ look, onChange, onSave, busy }) {
+  const opt = (list, key, sample) => list.map((f) => (
+    <button type="button" key={f.id} className={'choice-btn' + (look[key] === f.id ? ' on' : '')} aria-pressed={look[key] === f.id} onClick={() => onChange({ ...look, [key]: f.id })}>
+      <span className="sample" style={{ fontFamily: f.css }}>{sample}</span>
+      <small>{f.name}</small>
+    </button>
+  ));
+  return (
+    <form className="form" onSubmit={(e) => { e.preventDefault(); onSave(); }}>
+      <div className="look-preview" aria-hidden="true"><b>Filament Shelf</b><span>Sky Blue · 2 spools</span></div>
+      <p className="lead">Titles</p>
+      <div className="choice" role="group" aria-label="Titles">{opt(DISPLAY_CHOICES, 'displayFont', 'Filament Shelf')}</div>
+      <p className="lead" style={{ marginTop: 8 }}>Everything else</p>
+      <div className="choice" role="group" aria-label="Everything else">{opt(BODY_CHOICES, 'bodyFont', 'Sky Blue · 2 spools')}</div>
+      <div className="form-actions"><button className="btn primary grow" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button></div>
+    </form>
+  );
+}
+function PeopleSheet({ toast }) {
+  const [people, setPeople] = useState([]);
+  const [display, setDisplay] = useState('');
+  const [username, setUsername] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [link, setLink] = useState(null);
+  const [ask, setAsk] = useState(null);
+  const load = useCallback(async () => {
+    const res = await apiJson('/api/people', 'GET');
+    if (res.error === 'signedout') { window.location.assign('/login'); return; }
+    if (!res.ok) { setMsg(PEOPLE_ERR[res.error] || 'The list could not be loaded.'); return; }
+    setPeople(res.people || []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const showLink = (res, label) => {
+    if (res.error === 'signedout') { window.location.assign('/login'); return; }
+    if (!res.ok) { setMsg(PEOPLE_ERR[res.error] || 'That link could not be created.'); return; }
+    const url = location.origin + res.path;
+    setLink({ url, label });
+    setMsg('');
+  };
+  const create = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true); setMsg('');
+    const res = await apiJson('/api/people', 'POST', { display, username });
+    setBusy(false);
+    if (res.ok) { setDisplay(''); setUsername(''); showLink(res, display.trim() || username.trim()); load(); return; }
+    showLink(res, '');
+  };
+  const relink = async (person) => {
+    setBusy(true); setMsg('');
+    const res = await apiJson('/api/people/' + encodeURIComponent(person.user) + '/link', 'POST', {});
+    setBusy(false);
+    if (res.ok) { showLink(res, person.name || person.user); load(); return; }
+    showLink(res, '');
+  };
+  const remove = async (person) => {
+    setBusy(true); setMsg('');
+    const res = await apiJson('/api/people/' + encodeURIComponent(person.user), 'DELETE');
+    setBusy(false);
+    if (res.error === 'signedout') { window.location.assign('/login'); return; }
+    if (!res.ok) { setMsg(PEOPLE_ERR[res.error] || 'That account could not be removed.'); return; }
+    setPeople(res.people || []);
+    toast('Removed ' + (person.name || person.user));
+  };
+  const copy = async () => {
+    if (!link) return;
+    try { await navigator.clipboard.writeText(link.url); toast('Link copied.'); }
+    catch (e) { setMsg('Select the link and copy it.'); }
+  };
+  return (
+    <div>
+      <p className="lead">People you add can sign in and edit this shelf. Send them the link and they choose their own password.</p>
+      {people.map((person) => (
+        <div className="person" key={person.user}>
+          <div>
+            <strong>{person.name || person.user}</strong>
+            <small>{person.user}{person.role === 'admin' ? ' · Admin' : ''}{person.pending ? ' · Hasn’t chosen a password' : person.self ? ' · Signed in here' : ''}</small>
+          </div>
+          {!person.self && (
+            <div className="person-actions">
+              <button type="button" className="btn ghost small" disabled={busy} onClick={() => relink(person)}>{person.pending ? 'New link' : 'New password link'}</button>
+              <button type="button" className="btn ghost small danger-text" disabled={busy} onClick={() => setAsk(person)}>Remove</button>
+            </div>
+          )}
+        </div>
+      ))}
+      <form className="form" onSubmit={create} style={{ marginTop: 16 }}>
+        <h2 className="lead">Add someone</h2>
+        <label className="field"><span>Name</span>
+          <input value={display} autoComplete="off" maxLength={40} onChange={(e) => { setDisplay(e.target.value); setMsg(''); }} /></label>
+        <label className="field"><span>Username</span>
+          <input value={username} autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={32} onChange={(e) => { setUsername(e.target.value); setMsg(''); }} /></label>
+        {msg && <p className="note warn" role="alert">{I.warn}<span>{msg}</span></p>}
+        <div className="form-actions"><button className="btn primary grow" disabled={busy || !display.trim() || !username.trim()}>{busy ? 'Working…' : 'Create a link'}</button></div>
+      </form>
+      {link && (
+        <div className="form" style={{ marginTop: 8 }}>
+          <p className="lead">Send this to {link.label}. It works once, for 7 days.</p>
+          <label className="field"><span>Link</span>
+            <input readOnly value={link.url} onFocus={(e) => e.target.select()} /></label>
+          <button type="button" className="btn ghost full" onClick={copy}>Copy link</button>
+        </div>
+      )}
+      {ask && <Confirm c={{
+        title: 'Remove ' + (ask.name || ask.user) + '?',
+        body: ask.pending ? 'This cancels their link. They will not be able to use it.' : 'They will be signed out and will not be able to open the shelf.',
+        action: 'Remove', cancel: 'Keep account', danger: true,
+        onConfirm: () => remove(ask),
+      }} onClose={() => setAsk(null)} />}
+    </div>
+  );
+}
+
 /* ---------- account ---------- */
 function AccountSheet({ toast }) {
   const who = server();
@@ -1264,7 +1423,25 @@ export default function App() {
   const [mode, setMode] = useState(() => (bootStatus() === 'conflict' ? 'conflict' : 'unknown')); // unknown | cloud | device | viewonly
   const [saving, setSaving] = useState(false);
   const [intro] = useState(() => { const seen = ss.get('fs-seen', false); ss.set('fs-seen', true); return !seen; });
-  const dark = useDark();
+  const who = server();
+  const [look, setLook] = useState(() => ({
+    theme: who && who.theme || 'system',
+    displayFont: who && who.displayFont || 'bricolage',
+    bodyFont: who && who.bodyFont || 'instrument',
+  }));
+  const [draft, setDraft] = useState(null);
+  const [savingLook, setSavingLook] = useState(false);
+  const previewing = sheet && (sheet.type === 'appearance' || sheet.type === 'fonts');
+  const shownLook = previewing && draft ? draft : look;
+  const dark = useDark(shownLook.theme);
+  useEffect(() => {
+    applyLook(shownLook);
+    if (shownLook.theme === 'light' || shownLook.theme === 'dark') return;
+    let mq; try { mq = matchMedia('(prefers-color-scheme: dark)'); } catch (e) { return; }
+    const f = () => applyLook(shownLook);
+    mq.addEventListener ? mq.addEventListener('change', f) : mq.addListener(f);
+    return () => (mq.removeEventListener ? mq.removeEventListener('change', f) : mq.removeListener(f));
+  }, [shownLook]);
   const stateRef = useRef(state); stateRef.current = state;
   const publishing = useRef(false);
   const searchRef = useRef(null);
@@ -1410,7 +1587,7 @@ export default function App() {
     const next = cur.filter((b) => !sameBrand(b, name));
     return on ? next : [...next, name];
   });
-  const closeSheet = useCallback(() => setSheet(null), []);
+  const closeSheet = useCallback(() => { setSheet(null); setDraft(null); }, []);
   const closeConfirm = useCallback(() => setConfirm(null), []);
   const clearFilters = () => { setQ(''); setFb([]); setFm([]); setFl([]); setFr(false); };
 
@@ -1608,6 +1785,9 @@ export default function App() {
       {sheet && sheet.type === 'more' && (
         <Sheet title="Settings" onClose={closeSheet}>
           <ul className="menu">
+            {server() && <li><button onClick={() => { setDraft(look); setSheet({ type: 'appearance' }); }}><div><strong>Appearance</strong><small>{(THEME_CHOICES.find((t) => t.id === look.theme) || THEME_CHOICES[0]).name}</small></div>{I.chev}</button></li>}
+            {server() && <li><button onClick={() => { setDraft(look); setSheet({ type: 'fonts' }); }}><div><strong>Fonts</strong><small>{fontName(DISPLAY_CHOICES, look.displayFont)} and {fontName(BODY_CHOICES, look.bodyFont)}</small></div>{I.chev}</button></li>}
+            {server() && server().role === 'admin' && <li><button onClick={() => setSheet({ type: 'people' })}><div><strong>People</strong><small>Add someone, or send a new password link.</small></div>{I.chev}</button></li>}
             <li><button onClick={() => setSheet({ type: 'brands' })}><div><strong>Manage brands</strong><small>Rename, add or delete. {plural(state.brands.length, 'brand')} so far.</small></div>{I.chev}</button></li>
             <li className="menu-row">
               <div><strong>Low-stock level</strong><small>{lowAt <= 1 ? 'One spool is enough. Flag a color when it is out.' : 'Flag a color when fewer than ' + lowAt + ' are left.'}</small></div>
@@ -1640,6 +1820,23 @@ export default function App() {
           <p className="fine kbd-help">Shortcuts: <kbd className="kbd">/</kbd> search, <kbd className="kbd">N</kbd> new spool, <kbd className="kbd">1</kbd> <kbd className="kbd">2</kbd> switch tabs, <kbd className="kbd">Esc</kbd> close.</p>
         </Sheet>
       )}
+      {sheet && sheet.type === 'appearance' && <Sheet title="Appearance" onClose={closeSheet}><AppearanceSheet look={draft || look} busy={savingLook} onChange={setDraft} onSave={async () => {
+        const next = draft || look; setSavingLook(true);
+        const res = await apiJson('/api/account/look', 'POST', next);
+        setSavingLook(false);
+        if (res.error === 'signedout') { window.location.assign('/login'); return; }
+        if (!res.ok) { toast('Appearance could not be saved.'); return; }
+        setLook(next); rememberLook(next); setDraft(null); setSheet(null); toast('Appearance saved');
+      }} /></Sheet>}
+      {sheet && sheet.type === 'fonts' && <Sheet title="Fonts" onClose={closeSheet}><FontsSheet look={draft || look} busy={savingLook} onChange={setDraft} onSave={async () => {
+        const next = draft || look; setSavingLook(true);
+        const res = await apiJson('/api/account/look', 'POST', next);
+        setSavingLook(false);
+        if (res.error === 'signedout') { window.location.assign('/login'); return; }
+        if (!res.ok) { toast('Fonts could not be saved.'); return; }
+        setLook(next); rememberLook(next); setDraft(null); setSheet(null); toast('Fonts saved');
+      }} /></Sheet>}
+      {sheet && sheet.type === 'people' && <Sheet title="People" onClose={closeSheet} tall><PeopleSheet toast={toast} /></Sheet>}
       {sheet && sheet.type === 'account' && <Sheet title="Account" onClose={closeSheet}><AccountSheet toast={toast} /></Sheet>}
       {sheet && sheet.type === 'brands' && <Sheet title="Manage brands" onClose={closeSheet} tall><BrandsManager state={state} commit={commit} toast={toast} /></Sheet>}
       {sheet && sheet.type === 'export' && <Sheet title="Export" onClose={closeSheet}><ExportSheet state={state} toast={toast} /></Sheet>}

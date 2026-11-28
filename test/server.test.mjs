@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -59,6 +60,7 @@ async function start(extra = {}) {
   if (!up) { child.kill('SIGKILL'); throw new Error('server did not start\n' + log); }
   return {
     base,
+    dir,
     log: () => log,
     stop: async () => {
       if (child.exitCode == null) child.kill('SIGTERM');
@@ -116,6 +118,14 @@ test('first visit creates an account, then sign-in, saves, and password changes 
     const srv = await csrf(app.base, cookie);
     assert.equal(srv.user, 'max');
     assert.equal(srv.name, 'Max');
+    assert.equal(srv.role, 'admin');
+    assert.equal(srv.theme, 'system');
+    assert.equal(srv.displayFont, 'bricolage');
+    assert.equal(srv.bodyFont, 'instrument');
+    const page = await (await fetch(app.base + '/', { headers: headers(app.base, cookie) })).text();
+    assert.match(page, /data-display="bricolage"/);
+    assert.match(page, /data-body="instrument"/);
+    assert.doesNotMatch(page, /data-theme=/);
     const state = {
       version: 1, brands: ['Elegoo'], settings: { lowAt: 1, lowGrams: 200 },
       spools: [{ id: 's1', brand: 'Elegoo', material: 'PETG', colorName: 'Sky Blue', hex: '#3A9FE0', count: 2, weight: 1000, remaining: 180, location: 'Drybox', notes: '', price: 18 }],
@@ -204,6 +214,173 @@ test('the setup key blocks the first account until it matches', async () => {
       body: new URLSearchParams({ display: 'Max', username: 'max', password: 'correct horse', confirm: 'correct horse', setupKey: 'gate-key' }),
     });
     assert.equal(ok.status, 303);
+  } finally {
+    await app.stop();
+  }
+});
+
+async function signUp(app, display, username, password) {
+  const made = await fetch(app.base + '/setup', {
+    method: 'POST', redirect: 'manual',
+    headers: headers(app.base, '', { 'Content-Type': 'application/x-www-form-urlencoded' }),
+    body: new URLSearchParams({ display, username, password, confirm: password }),
+  });
+  assert.equal(made.status, 303);
+  return jar(made);
+}
+
+test('an admin can invite someone, and a member cannot manage people', async () => {
+  const app = await start();
+  try {
+    const adminCookie = await signUp(app, 'Max', 'max', 'correct horse');
+    const admin = await csrf(app.base, adminCookie);
+    const jsonHeaders = (cookie, csrfToken) => headers(app.base, cookie, { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken });
+
+    const deniedBefore = await fetch(app.base + '/api/people', { headers: headers(app.base) });
+    assert.equal(deniedBefore.status, 401);
+
+    const created = await fetch(app.base + '/api/people', {
+      method: 'POST',
+      headers: jsonHeaders(adminCookie, admin.csrf),
+      body: JSON.stringify({ display: 'Aroha', username: 'Aroha' }),
+    });
+    assert.equal(created.status, 201);
+    const invite = await created.json();
+    assert.match(invite.path, /^\/invite\/[A-Za-z0-9_-]{43}$/);
+    const token = invite.path.slice('/invite/'.length);
+    assert.equal(app.log().includes(token), false);
+
+    const replaced = await fetch(app.base + '/api/people', {
+      method: 'POST',
+      headers: jsonHeaders(adminCookie, admin.csrf),
+      body: JSON.stringify({ display: 'Aroha', username: 'aroha' }),
+    });
+    assert.equal(replaced.status, 201);
+    const fresh = await replaced.json();
+    const freshToken = fresh.path.slice('/invite/'.length);
+    assert.notEqual(freshToken, token);
+    const stale = await fetch(app.base + '/invite/' + token);
+    assert.equal(stale.status, 404);
+    assert.match(await stale.text(), /expired/);
+
+    const mismatch = await fetch(app.base + fresh.path, {
+      method: 'POST', redirect: 'manual',
+      headers: headers(app.base, '', { 'Content-Type': 'application/x-www-form-urlencoded' }),
+      body: new URLSearchParams({ password: 'spool shelf', confirm: 'other shelf' }),
+    });
+    assert.equal(mismatch.status, 400);
+    const joined = await fetch(app.base + fresh.path, {
+      method: 'POST', redirect: 'manual',
+      headers: headers(app.base, '', { 'Content-Type': 'application/x-www-form-urlencoded' }),
+      body: new URLSearchParams({ password: 'spool shelf', confirm: 'spool shelf' }),
+    });
+    assert.equal(joined.status, 303);
+    assert.equal(joined.headers.get('location'), '/');
+    const memberCookie = jar(joined);
+    const member = await csrf(app.base, memberCookie);
+    assert.equal(member.user, 'aroha');
+    assert.equal(member.role, 'member');
+    const used = await fetch(app.base + fresh.path);
+    assert.equal(used.status, 404);
+
+    const forbidden = await fetch(app.base + '/api/people', { headers: headers(app.base, memberCookie) });
+    assert.equal(forbidden.status, 403);
+    const forbiddenWrite = await fetch(app.base + '/api/people', {
+      method: 'POST',
+      headers: jsonHeaders(memberCookie, member.csrf),
+      body: JSON.stringify({ display: 'No', username: 'nope' }),
+    });
+    assert.equal(forbiddenWrite.status, 403);
+
+    const badLook = await fetch(app.base + '/api/account/look', {
+      method: 'POST',
+      headers: jsonHeaders(memberCookie, member.csrf),
+      body: JSON.stringify({ theme: 'neon', displayFont: 'bricolage', bodyFont: 'instrument' }),
+    });
+    assert.equal(badLook.status, 400);
+    const look = await fetch(app.base + '/api/account/look', {
+      method: 'POST',
+      headers: jsonHeaders(memberCookie, member.csrf),
+      body: JSON.stringify({ theme: 'dark', displayFont: 'fraunces', bodyFont: 'nunito' }),
+    });
+    assert.equal(look.status, 200);
+    const themed = await fetch(app.base + '/', { headers: headers(app.base, memberCookie) });
+    assert.equal(themed.status, 200);
+    const html = await themed.text();
+    assert.match(html, /data-theme="dark"/);
+    assert.match(html, /data-display="fraunces"/);
+    assert.match(html, /data-body="nunito"/);
+
+    const duplicate = await fetch(app.base + '/api/people', {
+      method: 'POST',
+      headers: jsonHeaders(adminCookie, admin.csrf),
+      body: JSON.stringify({ display: 'Aroha', username: 'aroha' }),
+    });
+    assert.equal(duplicate.status, 409);
+    const reset = await fetch(app.base + '/api/people/aroha/link', {
+      method: 'POST',
+      headers: jsonHeaders(adminCookie, admin.csrf),
+      body: JSON.stringify({}),
+    });
+    assert.equal(reset.status, 201);
+    const resetBody = await reset.json();
+    const resetToken = resetBody.path.slice('/invite/'.length);
+    assert.equal(app.log().includes(resetToken), false);
+    assert.match(app.log(), /POST \/invite /);
+    const resetPage = await (await fetch(app.base + resetBody.path)).text();
+    assert.match(resetPage, /Choose a new password/);
+    const resetDone = await fetch(app.base + resetBody.path, {
+      method: 'POST', redirect: 'manual',
+      headers: headers(app.base, '', { 'Content-Type': 'application/x-www-form-urlencoded' }),
+      body: new URLSearchParams({ password: 'fresh spool', confirm: 'fresh spool' }),
+    });
+    assert.equal(resetDone.status, 303);
+    const signedOut = await fetch(app.base + '/', { headers: headers(app.base, memberCookie), redirect: 'manual' });
+    assert.equal(signedOut.status, 303);
+    assert.equal(signedOut.headers.get('location'), '/login');
+    const newer = jar(resetDone);
+    const back = await fetch(app.base + '/', { headers: headers(app.base, newer), redirect: 'manual' });
+    assert.equal(back.status, 200);
+
+    const self = await fetch(app.base + '/api/people/max', {
+      method: 'DELETE',
+      headers: jsonHeaders(adminCookie, admin.csrf),
+    });
+    assert.equal(self.status, 400);
+    assert.equal((await self.json()).error, 'self');
+
+    const removed = await fetch(app.base + '/api/people/aroha', {
+      method: 'DELETE',
+      headers: jsonHeaders(adminCookie, admin.csrf),
+    });
+    assert.equal(removed.status, 200);
+    const gone = await fetch(app.base + '/', { headers: headers(app.base, newer), redirect: 'manual' });
+    assert.equal(gone.status, 303);
+
+    const pending = await fetch(app.base + '/api/people', {
+      method: 'POST',
+      headers: jsonHeaders(adminCookie, admin.csrf),
+      body: JSON.stringify({ display: 'Koa', username: 'koa' }),
+    });
+    const pendingBody = await pending.json();
+    const dropped = await fetch(app.base + '/api/people/koa', {
+      method: 'DELETE',
+      headers: jsonHeaders(adminCookie, admin.csrf),
+    });
+    assert.equal(dropped.status, 200);
+    const cancelled = await fetch(app.base + pendingBody.path);
+    assert.equal(cancelled.status, 404);
+
+    const oldToken = 'a'.repeat(43);
+    const oldId = createHash('sha256').update(oldToken).digest('hex');
+    writeFileSync(app.dir + '/invites.json', JSON.stringify({
+      invites: { [oldId]: { user: 'old', name: 'Old', purpose: 'join', exp: Date.now() - 1000 } },
+    }));
+    const expired = await fetch(app.base + '/invite/' + oldToken);
+    assert.equal(expired.status, 404);
+    assert.match(await expired.text(), /expired/);
+    assert.equal(app.log().includes(oldToken), false);
+    assert.equal(app.log().includes(freshToken), false);
   } finally {
     await app.stop();
   }
