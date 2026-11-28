@@ -330,9 +330,8 @@ html[data-theme="dark"] .chip.mat.on{background:var(--mat-bright);color:#14161c;
 .menu>li>button{width:100%;display:flex;align-items:center;justify-content:flex-start;gap:12px;text-align:left;padding:12px 0;min-height:64px;color:var(--ink-3)}
 .menu>li>button>div{flex:1;min-width:0}
 .menu-ico{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--surface-2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
-button .menu-ico svg,.menu-ico svg{width:18px;height:18px;stroke-width:1.75}
+button .menu-ico svg,.menu-ico svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 .menu-ico svg .hole{fill:currentColor;stroke:none}
-.menu-ico.warn{background:var(--warn-soft);color:var(--warn);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--warn) 28%,transparent)}
 .menu strong,.brand-row strong,.restock strong{display:block;font-weight:650;font-size:16.5px;color:var(--ink)}
 .menu small,.brand-row small,.restock small{display:block;font-size:13.5px;color:var(--ink-2);margin-top:1px}
 .brands li{padding:9px 0;border-bottom:1px solid var(--line)}
@@ -372,6 +371,9 @@ button.kpi:not(:disabled):active{transform:scale(.97)}
 .kpi.warn b,.kpi.warn span{color:var(--warn)}
 .kpi:disabled{cursor:default}
 .panel{background:var(--surface);border-radius:24px;padding:20px 18px 18px;box-shadow:var(--shadow)}
+.panel-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.panel-head h2{min-width:0}
+.panel-head .btn{flex:none}
 .panel h2{font:700 23px/1.1 var(--display);letter-spacing:-.025em}
 .panel .sub{font-size:14px;color:var(--ink-2);margin-top:3px}
 .subline{display:flex;flex-wrap:wrap;align-items:center;gap:0 12px;margin-top:3px}
@@ -528,7 +530,7 @@ button.kpi:not(:disabled):active{transform:scale(.97)}
 .catalog-btn>svg:last-child{color:var(--ink-3);flex:none}
 .catalog-btn:active{transform:scale(.985)}
 .cat-search{box-shadow:none;background:var(--surface-2)}
-.cat-chips{margin:10px -22px 0;padding:2px 22px 6px}
+.cat-maker{margin-top:12px}
 .cat-hint{margin-top:16px}
 .cat-list{margin-top:4px}
 .cat-list li+li{border-top:1px solid var(--line)}
@@ -543,7 +545,6 @@ button.kpi:not(:disabled):active{transform:scale(.97)}
 .lic a,.fine a{color:var(--accent);text-underline-offset:3px}
 .lic-text{font-size:11.5px;line-height:1.45;white-space:pre-wrap}
 @media (hover:hover){.cat-row:hover strong{color:var(--accent)}.catalog-btn:hover{border-color:var(--accent)}}
-.cat-chips{flex-wrap:nowrap!important;overflow-x:auto!important}
 
 .status.warn{color:var(--warn)}
 .status.warn i{background:var(--warn)}
