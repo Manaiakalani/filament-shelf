@@ -12,8 +12,8 @@ export const SHELF_FILE = path.join(DATA_DIR, 'shelf.json');
 export const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 
 export const THEMES = ['system', 'light', 'dark'];
-export const DISPLAY_FONTS = ['bricolage', 'fraunces', 'system'];
-export const BODY_FONTS = ['instrument', 'nunito', 'system'];
+export const DISPLAY_FONTS = ['bricolage', 'fraunces', 'quicksand', 'fredoka', 'outfit', 'system'];
+export const BODY_FONTS = ['instrument', 'nunito', 'quicksand', 'figtree', 'outfit', 'system'];
 export const INVITE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function readJson(file, fallback) {

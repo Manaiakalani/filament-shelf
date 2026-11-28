@@ -140,7 +140,7 @@ Run each one as `docker compose exec app node server/users.mjs …`.
 
 In the app, **Settings → Account** changes your own password and signs out other devices. The device you are using stays signed in. A password change stores a new scrypt hash and drops the other sessions.
 
-**Settings → Appearance** is Match this device, Light, or Dark. **Settings → Fonts** picks a title face and a body face. Both are saved on the account, so they follow that person to another device. Titles are Bricolage Grotesque, Fraunces, or the system font. Body text is Instrument Sans, Nunito, or the system font. A printed spool label stays in Iowan Old Style or Georgia.
+**Light and dark** sit on the home page, under the title: Match this device, Light, or Dark. The choice saves on the account as soon as you tap it, so it follows that person to another device. **Settings → Fonts** picks a title face and a body face, also saved on the account. Titles are Bricolage Grotesque, Fraunces, Quicksand, Fredoka, Outfit, or the system font. Body text is Instrument Sans, Nunito, Quicksand, Figtree, Outfit, or the system font. A printed spool label stays in Iowan Old Style or Georgia.
 
 Everyone who can sign in sees and edits the same shelf. Other devices pick up a change when you switch back to the app. If two devices edit at once, the second one is asked whether to keep its version or load the other one.
 
@@ -213,7 +213,7 @@ GitHub Actions runs those tests and a Trivy scan of the repository (vulnerabilit
 - **Open spool:** record grams left on the spool you are printing from. A full spool can stay blank. Insights counts that partial spool, and the picture shows how full a single spool is.
 - **Print label:** from a spool, a one-page label with the color, brand, material, place, and grams left.
 - **Insights:** kilograms on hand, what the priced colors cost, and charts by color, material, and brand. Tap a company on the brand chart to use the same brand filter. Show every brand clears it.
-- **Settings → Appearance:** Match this device, Light, or Dark. Saved on the account.
+- **Home:** Match this device, Light, or Dark, under the title. Saved on the account as soon as you tap it.
 - **Settings → Fonts:** a title face and a body face, with a live preview. Saved on the account.
 - **Settings → People:** an admin creates a one-time link, sends a new password link, or removes an account.
 - **Settings → Account:** who is signed in, a new password, and sign-out for other devices.

@@ -70,6 +70,16 @@ const I = {
   pin: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 1113 0C18.5 15.4 12 21 12 21z" /><circle cx="12" cy="10.5" r="2.3" /></svg>,
   dup: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="3" /><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2" /></svg>,
   drop: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5l4 4M4 20l1-4 9.5-9.5 3 3L8 19l-4 1z" /></svg>,
+  sun: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.6" /><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7" /></svg>,
+  moon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.2 3.4A7.6 7.6 0 1 0 20.2 15.6 6.2 6.2 0 0 1 15.2 3.4z" /></svg>,
+  device: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.2" y="2.6" width="9.6" height="18.8" rx="2" /><path d="M11 18.4h2" /></svg>,
+  type: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L12 5l7 14M7.8 14h8.4" /></svg>,
+  people: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.2" r="2.6" /><path d="M3.8 19c.5-2.8 2.4-4.2 5.2-4.2s4.7 1.4 5.2 4.2" /><circle cx="16.6" cy="9" r="2.1" /><path d="M15.2 14.8c1.8.2 3.2 1.2 3.9 3.4" /></svg>,
+  user: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3" /><path d="M5.2 19.2c.7-3.2 3-4.8 6.8-4.8s6.1 1.6 6.8 4.8" /></svg>,
+  tag: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.8 12.2V4.2h8l8.2 8.2-8 8z" /><circle cx="8" cy="8.4" r="1.1" /></svg>,
+  spool: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.2" /><circle cx="12" cy="12" r="2.2" /></svg>,
+  upload: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14.5V3.8M8.2 7.4 12 3.6l3.8 3.8" /><path d="M5 15.5v3.2a1.2 1.2 0 0 0 1.2 1.2h11.6a1.2 1.2 0 0 0 1.2-1.2v-3.2" /></svg>,
+  download: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8v10.7M8.2 11l3.8 3.8 3.8-3.8" /><path d="M5 15.5v3.2a1.2 1.2 0 0 0 1.2 1.2h11.6a1.2 1.2 0 0 0 1.2-1.2v-3.2" /></svg>,
 };
 
 /* ---------- the spool ---------- */
@@ -1198,23 +1208,53 @@ function Cell_({ s, onEdit, onBump, intro, i, settings }) {
   );
 }
 
-/* ---------- appearance, fonts, people ---------- */
+/* ---------- fonts, people ---------- */
 const THEME_CHOICES = [
-  { id: 'system', name: 'Match this device', detail: 'Follows the light or dark setting on this phone.' },
-  { id: 'light', name: 'Light', detail: 'Paper background.' },
-  { id: 'dark', name: 'Dark', detail: 'Night background.' },
+  { id: 'light', name: 'Light', icon: 'sun' },
+  { id: 'system', name: 'Match this device', icon: 'device' },
+  { id: 'dark', name: 'Dark', icon: 'moon' },
 ];
 const DISPLAY_CHOICES = [
   { id: 'bricolage', name: 'Bricolage Grotesque', css: '"Bricolage Grotesque Variable","Bricolage Grotesque",sans-serif' },
   { id: 'fraunces', name: 'Fraunces', css: '"Fraunces Variable",Fraunces,Georgia,serif' },
+  { id: 'quicksand', name: 'Quicksand', css: '"Quicksand Variable",Quicksand,sans-serif' },
+  { id: 'fredoka', name: 'Fredoka', css: '"Fredoka Variable",Fredoka,sans-serif' },
+  { id: 'outfit', name: 'Outfit', css: '"Outfit Variable",Outfit,sans-serif' },
   { id: 'system', name: 'System', css: '"Avenir Next","Segoe UI",system-ui,sans-serif' },
 ];
 const BODY_CHOICES = [
   { id: 'instrument', name: 'Instrument Sans', css: '"Instrument Sans Variable","Instrument Sans",sans-serif' },
   { id: 'nunito', name: 'Nunito', css: '"Nunito Variable",Nunito,sans-serif' },
+  { id: 'quicksand', name: 'Quicksand', css: '"Quicksand Variable",Quicksand,sans-serif' },
+  { id: 'figtree', name: 'Figtree', css: '"Figtree Variable",Figtree,sans-serif' },
+  { id: 'outfit', name: 'Outfit', css: '"Outfit Variable",Outfit,sans-serif' },
   { id: 'system', name: 'System', css: '"Avenir Next","Segoe UI",system-ui,sans-serif' },
 ];
 const fontName = (list, id) => (list.find((f) => f.id === id) || list[0]).name;
+const fontsById = (list, ids) => ids.map((id) => list.find((f) => f.id === id));
+function FontChoices({ label, choices, selected, sample, onPick }) {
+  return (
+    <div className="choice pair" role="group" aria-label={label}>
+      {choices.map((f) => (
+        <button type="button" key={f.id} className={'choice-btn' + (selected === f.id ? ' on' : '')} aria-pressed={selected === f.id} onClick={() => onPick(f.id)}>
+          <span className="sample" style={{ fontFamily: f.css }}>{sample}</span>
+          <small>{f.name}</small>
+        </button>
+      ))}
+    </div>
+  );
+}
+function MenuButton({ ico, tone, title, detail, onClick }) {
+  return (
+    <li>
+      <button type="button" onClick={onClick}>
+        <span className={'menu-ico ' + tone}>{ico}</span>
+        <div><strong>{title}</strong><small>{detail}</small></div>
+        {I.chev}
+      </button>
+    </li>
+  );
+}
 const PEOPLE_ERR = {
   exists: 'That username is already on the shelf.',
   bad_name: 'Use a name with letters and numbers, up to 40 characters.',
@@ -1226,35 +1266,22 @@ const PEOPLE_ERR = {
   signedout: 'Sign in again to continue.',
 };
 
-function AppearanceSheet({ look, onChange, onSave, busy }) {
-  return (
-    <form className="form" onSubmit={(e) => { e.preventDefault(); onSave(); }}>
-      <div className="look-preview" aria-hidden="true"><b>Filament Shelf</b><span>Sky Blue · 2 spools</span></div>
-      <div className="choice" role="group" aria-label="Appearance">
-        {THEME_CHOICES.map((t) => (
-          <button type="button" key={t.id} className={'choice-btn' + (look.theme === t.id ? ' on' : '')} aria-pressed={look.theme === t.id} onClick={() => onChange({ ...look, theme: t.id })}>
-            <strong>{t.name}</strong><small>{t.detail}</small>
-          </button>
-        ))}
-      </div>
-      <div className="form-actions"><button className="btn primary grow" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button></div>
-    </form>
-  );
-}
 function FontsSheet({ look, onChange, onSave, busy }) {
-  const opt = (list, key, sample) => list.map((f) => (
-    <button type="button" key={f.id} className={'choice-btn' + (look[key] === f.id ? ' on' : '')} aria-pressed={look[key] === f.id} onClick={() => onChange({ ...look, [key]: f.id })}>
-      <span className="sample" style={{ fontFamily: f.css }}>{sample}</span>
-      <small>{f.name}</small>
-    </button>
-  ));
+  const pick = (key) => (id) => onChange({ ...look, [key]: id });
   return (
     <form className="form" onSubmit={(e) => { e.preventDefault(); onSave(); }}>
       <div className="look-preview" aria-hidden="true"><b>Filament Shelf</b><span>Sky Blue · 2 spools</span></div>
-      <p className="lead">Titles</p>
-      <div className="choice" role="group" aria-label="Titles">{opt(DISPLAY_CHOICES, 'displayFont', 'Filament Shelf')}</div>
-      <p className="lead" style={{ marginTop: 8 }}>Everything else</p>
-      <div className="choice" role="group" aria-label="Everything else">{opt(BODY_CHOICES, 'bodyFont', 'Sky Blue · 2 spools')}</div>
+      <h3 className="font-section">Titles</h3>
+      <FontChoices label="Titles" choices={fontsById(DISPLAY_CHOICES, ['bricolage', 'fraunces'])} selected={look.displayFont} sample="Shelf" onPick={pick('displayFont')} />
+      <h3 className="font-group">Cute</h3>
+      <FontChoices label="Cute titles" choices={fontsById(DISPLAY_CHOICES, ['quicksand', 'fredoka'])} selected={look.displayFont} sample="Shelf" onPick={pick('displayFont')} />
+      <h3 className="font-group">Minimal</h3>
+      <FontChoices label="Minimal titles" choices={fontsById(DISPLAY_CHOICES, ['outfit', 'system'])} selected={look.displayFont} sample="Shelf" onPick={pick('displayFont')} />
+      <h3 className="font-section">Everything else</h3>
+      <h3 className="font-group">Cute</h3>
+      <FontChoices label="Cute text" choices={fontsById(BODY_CHOICES, ['nunito', 'quicksand'])} selected={look.bodyFont} sample="Sky Blue" onPick={pick('bodyFont')} />
+      <h3 className="font-group">Minimal</h3>
+      <FontChoices label="Minimal text" choices={fontsById(BODY_CHOICES, ['instrument', 'figtree', 'outfit', 'system'])} selected={look.bodyFont} sample="Sky Blue" onPick={pick('bodyFont')} />
       <div className="form-actions"><button className="btn primary grow" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button></div>
     </form>
   );
@@ -1431,7 +1458,7 @@ export default function App() {
   }));
   const [draft, setDraft] = useState(null);
   const [savingLook, setSavingLook] = useState(false);
-  const previewing = sheet && (sheet.type === 'appearance' || sheet.type === 'fonts');
+  const previewing = sheet && sheet.type === 'fonts';
   const shownLook = previewing && draft ? draft : look;
   const dark = useDark(shownLook.theme);
   useEffect(() => {
@@ -1444,6 +1471,7 @@ export default function App() {
   }, [shownLook]);
   const stateRef = useRef(state); stateRef.current = state;
   const publishing = useRef(false);
+  const lookSave = useRef(false);
   const searchRef = useRef(null);
   const bgRef = useRef(null);
   const lowAt = state.settings && Number.isFinite(state.settings.lowAt) ? state.settings.lowAt : 1;
@@ -1460,6 +1488,20 @@ export default function App() {
 
   const toast = useCallback((t, action) => { setToastMsg({ t, k: Date.now(), action: action || null }); }, []);
   useEffect(() => { if (!toastMsg) return; const t = setTimeout(() => setToastMsg(null), toastMsg.action ? 6000 : 2200); return () => clearTimeout(t); }, [toastMsg]);
+  const setTheme = async (theme) => {
+    if (!who || lookSave.current || theme === look.theme) return;
+    const prev = look;
+    const next = { displayFont: look.displayFont, bodyFont: look.bodyFont, theme };
+    lookSave.current = true;
+    setSavingLook(true);
+    setLook(next);
+    rememberLook(next);
+    const res = await apiJson('/api/account/look', 'POST', next);
+    lookSave.current = false;
+    setSavingLook(false);
+    if (res.error === 'signedout') { window.location.assign('/login'); return; }
+    if (!res.ok) { setLook(prev); rememberLook(prev); toast('Appearance could not be saved.'); }
+  };
 
   // Every user action goes through commit: stamp, save on this device now, publish later.
   const commit = useCallback((fn) => {
@@ -1664,6 +1706,22 @@ export default function App() {
                 : <span className={'status' + (saving || dirty ? ' busy' : '') + (mode === 'offline' ? ' warn' : '')} role="status"><i />{status}</span>}
             </div>
           </div>
+          {who && (
+            <div className="theme-toggle" role="radiogroup" aria-label="Appearance" onKeyDown={(e) => {
+              const order = THEME_CHOICES.map((t) => t.id);
+              const i = Math.max(0, order.indexOf(look.theme));
+              const next = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? order[(i + 1) % order.length]
+                : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? order[(i + order.length - 1) % order.length] : '';
+              if (!next) return;
+              e.preventDefault();
+              setTheme(next);
+              e.currentTarget.querySelector('#theme-' + next)?.focus();
+            }}>
+              {THEME_CHOICES.map((t) => (
+                <button key={t.id} id={'theme-' + t.id} type="button" role="radio" aria-checked={look.theme === t.id} aria-label={t.name} title={t.name} tabIndex={look.theme === t.id ? 0 : -1} className={look.theme === t.id ? 'on' : ''} disabled={savingLook} onClick={() => setTheme(t.id)}>{I[t.icon]}</button>
+              ))}
+            </div>
+          )}
           <dl className="stats">
             <div><dd>{stats.total}</dd><dt>spools</dt></div>
             <div><dd>{stats.colors}</dd><dt>colors</dt></div>
@@ -1784,12 +1842,21 @@ export default function App() {
       )}
       {sheet && sheet.type === 'more' && (
         <Sheet title="Settings" onClose={closeSheet}>
+          {server() && (
+            <>
+              <h3 className="menu-group">You</h3>
+              <ul className="menu">
+                <MenuButton ico={I.type} tone="accent" title="Fonts" detail={fontName(DISPLAY_CHOICES, look.displayFont) + ' and ' + fontName(BODY_CHOICES, look.bodyFont)} onClick={() => { setDraft(look); setSheet({ type: 'fonts' }); }} />
+                {server().role === 'admin' && <MenuButton ico={I.people} tone="low" title="People" detail="Add someone, or send a new password link." onClick={() => setSheet({ type: 'people' })} />}
+                <MenuButton ico={I.user} tone="ink" title="Account" detail={'Password and other devices. Signed in as ' + (server().name || server().user) + '.'} onClick={() => setSheet({ type: 'account' })} />
+              </ul>
+            </>
+          )}
+          <h3 className="menu-group">Shelf</h3>
           <ul className="menu">
-            {server() && <li><button onClick={() => { setDraft(look); setSheet({ type: 'appearance' }); }}><div><strong>Appearance</strong><small>{(THEME_CHOICES.find((t) => t.id === look.theme) || THEME_CHOICES[0]).name}</small></div>{I.chev}</button></li>}
-            {server() && <li><button onClick={() => { setDraft(look); setSheet({ type: 'fonts' }); }}><div><strong>Fonts</strong><small>{fontName(DISPLAY_CHOICES, look.displayFont)} and {fontName(BODY_CHOICES, look.bodyFont)}</small></div>{I.chev}</button></li>}
-            {server() && server().role === 'admin' && <li><button onClick={() => setSheet({ type: 'people' })}><div><strong>People</strong><small>Add someone, or send a new password link.</small></div>{I.chev}</button></li>}
-            <li><button onClick={() => setSheet({ type: 'brands' })}><div><strong>Manage brands</strong><small>Rename, add or delete. {plural(state.brands.length, 'brand')} so far.</small></div>{I.chev}</button></li>
+            <MenuButton ico={I.tag} tone="accent" title="Manage brands" detail={'Rename, add or delete. ' + plural(state.brands.length, 'brand') + ' so far.'} onClick={() => setSheet({ type: 'brands' })} />
             <li className="menu-row">
+              <span className="menu-ico warn">{I.warn}</span>
               <div><strong>Low-stock level</strong><small>{lowAt <= 1 ? 'One spool is enough. Flag a color when it is out.' : 'Flag a color when fewer than ' + lowAt + ' are left.'}</small></div>
               <div className="stepper in-form" role="group" aria-label="Low-stock level">
                 <button type="button" onClick={() => setLow(lowAt - 1)} disabled={lowAt <= 0} aria-label="Lower the level">{I.minus}</button>
@@ -1798,6 +1865,7 @@ export default function App() {
               </div>
             </li>
             <li className="menu-row">
+              <span className="menu-ico low">{I.spool}</span>
               <div><strong>Open-spool warning</strong><small>{lowGrams === 0 ? 'Don’t flag an open spool by weight.' : 'Flag an open spool at ' + lowGrams + ' g or less.'}</small></div>
               <div className="stepper in-form" role="group" aria-label="Open-spool warning">
                 <button type="button" onClick={() => setLowGrams(lowGrams - 50)} disabled={lowGrams <= 0} aria-label="Lower the grams">{I.minus}</button>
@@ -1805,9 +1873,11 @@ export default function App() {
                 <button type="button" onClick={() => setLowGrams(lowGrams + 50)} disabled={lowGrams >= 2000} aria-label="Raise the grams">{I.plus}</button>
               </div>
             </li>
-            {server() && <li><button onClick={() => setSheet({ type: 'account' })}><div><strong>Account</strong><small>Password and other devices. Signed in as {server().name || server().user}.</small></div>{I.chev}</button></li>}
-            <li><button onClick={() => setSheet({ type: 'export' })}><div><strong>Export</strong><small>Copy or save a backup, or a spreadsheet.</small></div>{I.chev}</button></li>
-            <li><button onClick={() => setSheet({ type: 'import' })}><div><strong>Import</strong><small>Load a backup or spreadsheet from text or a file.</small></div>{I.chev}</button></li>
+          </ul>
+          <h3 className="menu-group">Backup</h3>
+          <ul className="menu">
+            <MenuButton ico={I.upload} tone="accent" title="Export" detail="Copy or save a backup, or a spreadsheet." onClick={() => setSheet({ type: 'export' })} />
+            <MenuButton ico={I.download} tone="ink" title="Import" detail="Load a backup or spreadsheet from text or a file." onClick={() => setSheet({ type: 'import' })} />
           </ul>
           {server() && (
             <div className="menu-row signed">
@@ -1820,15 +1890,7 @@ export default function App() {
           <p className="fine kbd-help">Shortcuts: <kbd className="kbd">/</kbd> search, <kbd className="kbd">N</kbd> new spool, <kbd className="kbd">1</kbd> <kbd className="kbd">2</kbd> switch tabs, <kbd className="kbd">Esc</kbd> close.</p>
         </Sheet>
       )}
-      {sheet && sheet.type === 'appearance' && <Sheet title="Appearance" onClose={closeSheet}><AppearanceSheet look={draft || look} busy={savingLook} onChange={setDraft} onSave={async () => {
-        const next = draft || look; setSavingLook(true);
-        const res = await apiJson('/api/account/look', 'POST', next);
-        setSavingLook(false);
-        if (res.error === 'signedout') { window.location.assign('/login'); return; }
-        if (!res.ok) { toast('Appearance could not be saved.'); return; }
-        setLook(next); rememberLook(next); setDraft(null); setSheet(null); toast('Appearance saved');
-      }} /></Sheet>}
-      {sheet && sheet.type === 'fonts' && <Sheet title="Fonts" onClose={closeSheet}><FontsSheet look={draft || look} busy={savingLook} onChange={setDraft} onSave={async () => {
+      {sheet && sheet.type === 'fonts' && <Sheet title="Fonts" onClose={closeSheet} tall><FontsSheet look={draft || look} busy={savingLook} onChange={setDraft} onSave={async () => {
         const next = draft || look; setSavingLook(true);
         const res = await apiJson('/api/account/look', 'POST', next);
         setSavingLook(false);
