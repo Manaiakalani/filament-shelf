@@ -177,7 +177,7 @@ export function applyLook(look) {
   if (look.theme !== 'light' && look.theme !== 'dark') {
     try { dark = matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { dark = false; }
   }
-  const color = dark ? '#11131A' : '#E8EBF1';
+  const color = dark ? '#11131A' : '#C9D0DB';
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', color));
 }
 export function rememberLook(look) {

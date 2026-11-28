@@ -73,13 +73,13 @@ const I = {
   sun: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.6" /><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7" /></svg>,
   moon: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.2 3.4A7.6 7.6 0 1 0 20.2 15.6 6.2 6.2 0 0 1 15.2 3.4z" /></svg>,
   device: <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.2" y="2.6" width="9.6" height="18.8" rx="2" /><path d="M11 18.4h2" /></svg>,
-  type: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L12 5l7 14M7.8 14h8.4" /></svg>,
-  people: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.2" r="2.6" /><path d="M3.8 19c.5-2.8 2.4-4.2 5.2-4.2s4.7 1.4 5.2 4.2" /><circle cx="16.6" cy="9" r="2.1" /><path d="M15.2 14.8c1.8.2 3.2 1.2 3.9 3.4" /></svg>,
-  user: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3" /><path d="M5.2 19.2c.7-3.2 3-4.8 6.8-4.8s6.1 1.6 6.8 4.8" /></svg>,
-  tag: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.8 12.2V4.2h8l8.2 8.2-8 8z" /><circle cx="8" cy="8.4" r="1.1" /></svg>,
-  spool: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.2" /><circle cx="12" cy="12" r="2.2" /></svg>,
-  upload: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14.5V3.8M8.2 7.4 12 3.6l3.8 3.8" /><path d="M5 15.5v3.2a1.2 1.2 0 0 0 1.2 1.2h11.6a1.2 1.2 0 0 0 1.2-1.2v-3.2" /></svg>,
-  download: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8v10.7M8.2 11l3.8 3.8 3.8-3.8" /><path d="M5 15.5v3.2a1.2 1.2 0 0 0 1.2 1.2h11.6a1.2 1.2 0 0 0 1.2-1.2v-3.2" /></svg>,
+  type: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19.2 12 4.8 18 19.2M8.2 14.2h7.6" /></svg>,
+  people: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="16.4" cy="9.1" r="2" /><path d="M13.6 18.6c.3-2.1 1.6-3.3 3.2-3.4 1.5.1 2.6 1.2 3 3.4" /><circle cx="9" cy="8.1" r="2.5" /><path d="M3.8 19c.4-2.8 2.3-4.3 5.2-4.3s4.8 1.5 5.2 4.3" /></svg>,
+  user: <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3" /><path d="M5 19.2c.6-3.2 3.1-4.9 7-4.9s6.4 1.7 7 4.9" /></svg>,
+  tag: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.6 12.2 12 4.8h7.2v7.2L11.8 19.4z" /><circle className="hole" cx="8.4" cy="8.6" r="1.15" /></svg>,
+  spool: <svg viewBox="0 0 24 24" aria-hidden="true"><path className="hole" fillRule="evenodd" d="M12 4.2a7.8 7.8 0 1 1 0 15.6 7.8 7.8 0 0 1 0-15.6zm0 5a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6z" /></svg>,
+  upload: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4.6M8.2 8.2 12 4.4l3.8 3.8" /><path d="M5.2 15.4v3.2c0 .7.5 1.2 1.2 1.2h11.2c.7 0 1.2-.5 1.2-1.2v-3.2" /></svg>,
+  download: <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.4v10.4M8.2 11.2 12 15l3.8-3.8" /><path d="M5.2 15.4v3.2c0 .7.5 1.2 1.2 1.2h11.2c.7 0 1.2-.5 1.2-1.2v-3.2" /></svg>,
 };
 
 /* ---------- the spool ---------- */
@@ -1248,7 +1248,7 @@ function MenuButton({ ico, tone, title, detail, onClick }) {
   return (
     <li>
       <button type="button" onClick={onClick}>
-        <span className={'menu-ico ' + tone}>{ico}</span>
+        <span className={tone ? 'menu-ico ' + tone : 'menu-ico'}>{ico}</span>
         <div><strong>{title}</strong><small>{detail}</small></div>
         {I.chev}
       </button>
@@ -1701,27 +1701,27 @@ export default function App() {
             <h1>Filament <br />Shelf</h1>
             <div className="top-side">
               <button className="icon-btn solid" onClick={() => setSheet({ type: 'more' })} aria-label="Settings, brands and backup">{I.more}</button>
+              {who && (
+                <div className="theme-toggle" role="radiogroup" aria-label="Appearance" onKeyDown={(e) => {
+                  const order = THEME_CHOICES.map((t) => t.id);
+                  const i = Math.max(0, order.indexOf(look.theme));
+                  const next = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? order[(i + 1) % order.length]
+                    : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? order[(i + order.length - 1) % order.length] : '';
+                  if (!next) return;
+                  e.preventDefault();
+                  setTheme(next);
+                  e.currentTarget.querySelector('#theme-' + next)?.focus();
+                }}>
+                  {THEME_CHOICES.map((t) => (
+                    <button key={t.id} id={'theme-' + t.id} type="button" role="radio" aria-checked={look.theme === t.id} aria-label={t.name} title={t.name} tabIndex={look.theme === t.id ? 0 : -1} className={look.theme === t.id ? 'on' : ''} disabled={savingLook} onClick={() => setTheme(t.id)}>{I[t.icon]}</button>
+                  ))}
+                </div>
+              )}
               {mode === 'conflict' || mode === 'signedout' || mode === 'rejected'
                 ? <button className="status warn" onClick={() => (mode === 'signedout' ? window.location.reload() : setSheet({ type: 'conflict' }))}>{I.warn}{status}{mode === 'signedout' ? ', sign in' : ''}</button>
                 : <span className={'status' + (saving || dirty ? ' busy' : '') + (mode === 'offline' ? ' warn' : '')} role="status"><i />{status}</span>}
             </div>
           </div>
-          {who && (
-            <div className="theme-toggle" role="radiogroup" aria-label="Appearance" onKeyDown={(e) => {
-              const order = THEME_CHOICES.map((t) => t.id);
-              const i = Math.max(0, order.indexOf(look.theme));
-              const next = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? order[(i + 1) % order.length]
-                : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? order[(i + order.length - 1) % order.length] : '';
-              if (!next) return;
-              e.preventDefault();
-              setTheme(next);
-              e.currentTarget.querySelector('#theme-' + next)?.focus();
-            }}>
-              {THEME_CHOICES.map((t) => (
-                <button key={t.id} id={'theme-' + t.id} type="button" role="radio" aria-checked={look.theme === t.id} aria-label={t.name} title={t.name} tabIndex={look.theme === t.id ? 0 : -1} className={look.theme === t.id ? 'on' : ''} disabled={savingLook} onClick={() => setTheme(t.id)}>{I[t.icon]}</button>
-              ))}
-            </div>
-          )}
           <dl className="stats">
             <div><dd>{stats.total}</dd><dt>spools</dt></div>
             <div><dd>{stats.colors}</dd><dt>colors</dt></div>
@@ -1846,15 +1846,15 @@ export default function App() {
             <>
               <h3 className="menu-group">You</h3>
               <ul className="menu">
-                <MenuButton ico={I.type} tone="accent" title="Fonts" detail={fontName(DISPLAY_CHOICES, look.displayFont) + ' and ' + fontName(BODY_CHOICES, look.bodyFont)} onClick={() => { setDraft(look); setSheet({ type: 'fonts' }); }} />
-                {server().role === 'admin' && <MenuButton ico={I.people} tone="low" title="People" detail="Add someone, or send a new password link." onClick={() => setSheet({ type: 'people' })} />}
-                <MenuButton ico={I.user} tone="ink" title="Account" detail={'Password and other devices. Signed in as ' + (server().name || server().user) + '.'} onClick={() => setSheet({ type: 'account' })} />
+                <MenuButton ico={I.type} title="Fonts" detail={fontName(DISPLAY_CHOICES, look.displayFont) + ' and ' + fontName(BODY_CHOICES, look.bodyFont)} onClick={() => { setDraft(look); setSheet({ type: 'fonts' }); }} />
+                {server().role === 'admin' && <MenuButton ico={I.people} title="People" detail="Add someone, or send a new password link." onClick={() => setSheet({ type: 'people' })} />}
+                <MenuButton ico={I.user} title="Account" detail={'Password and other devices. Signed in as ' + (server().name || server().user) + '.'} onClick={() => setSheet({ type: 'account' })} />
               </ul>
             </>
           )}
           <h3 className="menu-group">Shelf</h3>
           <ul className="menu">
-            <MenuButton ico={I.tag} tone="accent" title="Manage brands" detail={'Rename, add or delete. ' + plural(state.brands.length, 'brand') + ' so far.'} onClick={() => setSheet({ type: 'brands' })} />
+            <MenuButton ico={I.tag} title="Manage brands" detail={'Rename, add or delete. ' + plural(state.brands.length, 'brand') + ' so far.'} onClick={() => setSheet({ type: 'brands' })} />
             <li className="menu-row">
               <span className="menu-ico warn">{I.warn}</span>
               <div><strong>Low-stock level</strong><small>{lowAt <= 1 ? 'One spool is enough. Flag a color when it is out.' : 'Flag a color when fewer than ' + lowAt + ' are left.'}</small></div>
@@ -1865,7 +1865,7 @@ export default function App() {
               </div>
             </li>
             <li className="menu-row">
-              <span className="menu-ico low">{I.spool}</span>
+              <span className="menu-ico warn">{I.spool}</span>
               <div><strong>Open-spool warning</strong><small>{lowGrams === 0 ? 'Don’t flag an open spool by weight.' : 'Flag an open spool at ' + lowGrams + ' g or less.'}</small></div>
               <div className="stepper in-form" role="group" aria-label="Open-spool warning">
                 <button type="button" onClick={() => setLowGrams(lowGrams - 50)} disabled={lowGrams <= 0} aria-label="Lower the grams">{I.minus}</button>
@@ -1876,8 +1876,8 @@ export default function App() {
           </ul>
           <h3 className="menu-group">Backup</h3>
           <ul className="menu">
-            <MenuButton ico={I.upload} tone="accent" title="Export" detail="Copy or save a backup, or a spreadsheet." onClick={() => setSheet({ type: 'export' })} />
-            <MenuButton ico={I.download} tone="ink" title="Import" detail="Load a backup or spreadsheet from text or a file." onClick={() => setSheet({ type: 'import' })} />
+            <MenuButton ico={I.upload} title="Export" detail="Copy or save a backup, or a spreadsheet." onClick={() => setSheet({ type: 'export' })} />
+            <MenuButton ico={I.download} title="Import" detail="Load a backup or spreadsheet from text or a file." onClick={() => setSheet({ type: 'import' })} />
           </ul>
           {server() && (
             <div className="menu-row signed">
