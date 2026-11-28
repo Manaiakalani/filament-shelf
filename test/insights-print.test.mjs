@@ -30,8 +30,32 @@ test('the insights sheet names the shelf, the colors, and an empty roll', () => 
   assert.match(html, />Out</);
   assert.doesNotMatch(html, /Navy Blue/);
   assert.doesNotMatch(html, /Elegoo/);
-  assert.match(html, /conic-gradient/);
-  assert.match(html, /print\(\)/);
+  assert.match(html, /class="p-rain"/);
+  assert.match(html, /data-bg="#ff3b30"/);
+  assert.match(html, /data-bg="#bf5af2"/);
+  assert.doesNotMatch(html, /conic-gradient/);
+  assert.match(html, /data-grow="2"/);
+  assert.match(html, /class="p-strand"/);
+  assert.match(html, /class="p-meter"/);
+  assert.doesNotMatch(html, /<style/);
+  assert.doesNotMatch(html, /<script/);
+  assert.doesNotMatch(html, /\sstyle="/);
+});
+
+test('the sheet links its stylesheet and keeps a bad address inside the attribute', () => {
+  const html = insightsSheetHtml({
+    spools: [],
+    brands: [],
+    ownerName: 'Max',
+    cssHref: 'https://filament.example/assets/paper-abc.css" onload="alert(1)',
+    when,
+  });
+  assert.match(html, /class="p-quiet"/);
+  assert.doesNotMatch(html, /class="quiet"/);
+  assert.match(html, /No spools on hand to split by material/);
+  assert.match(html, /href="https:\/\/filament\.example\/assets\/paper-abc\.css&quot; onload=&quot;alert\(1\)"/);
+  assert.doesNotMatch(html, /<link[^>]*\sonload="/);
+  assert.doesNotMatch(html, /<script/);
 });
 
 test('a color name cannot break out of the sheet', () => {
